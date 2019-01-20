@@ -1,0 +1,10 @@
+LIBRARY UDFSRV
+DESCRIPTION 'Library for DB2 User Defined Functions'
+EXPORTS
+        ScalarUDF
+        ScratchpadScUDF
+        ClobScalarUDF
+        ScUDFReturningErr
+        TableUDF
+        TableUDF_CSV
+        TblUDFClobFromFile

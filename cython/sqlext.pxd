@@ -1,0 +1,260 @@
+cimport sqlcli
+#from sql import *
+
+cdef extern from "sqlext.h":
+
+    # to set ODBC version
+    enum :
+        SQL_ATTR_ODBC_VERSION
+        SQL_OV_ODBC3
+        SQL_OV_ODBC3_80
+
+    #Options for SQLDriverConnect
+    enum:
+        SQL_DRIVER_NOPROMPT
+        SQL_DRIVER_COMPLETE
+        SQL_DRIVER_PROMPT
+        SQL_DRIVER_COMPLETE_REQUIRED
+    
+
+    enum: 
+
+        SQL_AUTOCOMMIT_OFF
+
+        SQL_ATTR_ASYNC_ENABLE
+        SQL_ATTR_CONCURRENCY
+        SQL_ATTR_CURSOR_TYPE
+        SQL_ATTR_ENABLE_AUTO_IPD
+        SQL_ATTR_FETCH_BOOKMARK_PTR
+        SQL_ATTR_KEYSET_SIZE
+        SQL_ATTR_MAX_LENGTH
+        SQL_ATTR_MAX_ROWS
+        SQL_ATTR_NOSCAN
+        SQL_ATTR_PARAM_BIND_OFFSET_PTR
+        SQL_ATTR_PARAM_BIND_TYPE
+        SQL_ATTR_PARAM_OPERATION_PTR
+        SQL_ATTR_PARAM_STATUS_PTR
+        SQL_ATTR_PARAMS_PROCESSED_PTR
+        SQL_ATTR_PARAMSET_SIZE
+        SQL_ATTR_QUERY_TIMEOUT
+        SQL_ATTR_RETRIEVE_DATA
+        SQL_ATTR_ROW_BIND_OFFSET_PTR
+        SQL_ATTR_ROW_BIND_TYPE
+        SQL_ATTR_ROW_NUMBER
+        SQL_ATTR_ROW_OPERATION_PTR
+        SQL_ATTR_ROW_STATUS_PTR
+        SQL_ATTR_ROWS_FETCHED_PTR
+        SQL_ATTR_ROW_ARRAY_SIZE
+        SQL_ATTR_SIMULATE_CURSOR
+        SQL_ATTR_USE_BOOKMARKS
+        SQL_ATTR_AUTOCOMMIT
+        
+        # SQL extended datatypes
+        SQL_DATE
+        SQL_INTERVAL
+        SQL_TIME
+        SQL_TIMESTAMP
+        SQL_LONGVARCHAR
+        SQL_BINARY
+        SQL_VARBINARY
+        SQL_LONGVARBINARY
+        SQL_BIGINT
+        SQL_TINYINT
+        SQL_BIT
+        SQL_GUID
+        
+        # C datatype to SQL datatype mapping
+        SQL_C_CHAR
+        SQL_C_LONG
+        SQL_C_SHORT
+        SQL_C_FLOAT
+        SQL_C_DOUBLE
+        SQL_C_NUMERIC
+        SQL_C_DEFAULT
+        
+        SQL_SIGNED_OFFSET
+        SQL_UNSIGNED_OFFSET
+        
+        SQL_C_DATE
+        SQL_C_TIME
+        SQL_C_TIMESTAMP
+        SQL_C_TYPE_DATE
+        SQL_C_TYPE_TIME
+        SQL_C_TYPE_TIMESTAMP
+        SQL_C_INTERVAL_YEAR
+        SQL_C_INTERVAL_MONTH
+        SQL_C_INTERVAL_DAY
+        SQL_C_INTERVAL_HOUR
+        SQL_C_INTERVAL_MINUTE
+        SQL_C_INTERVAL_SECOND
+        SQL_C_INTERVAL_YEAR_TO_MONTH
+        SQL_C_INTERVAL_DAY_TO_HOUR
+        SQL_C_INTERVAL_DAY_TO_MINUTE
+        SQL_C_INTERVAL_DAY_TO_SECOND
+        SQL_C_INTERVAL_HOUR_TO_MINUTE
+        SQL_C_INTERVAL_HOUR_TO_SECOND
+        SQL_C_INTERVAL_MINUTE_TO_SECOND
+        SQL_C_BINARY
+        SQL_C_BIT
+        SQL_C_SBIGINT
+        SQL_C_UBIGINT
+        SQL_C_TINYINT
+        SQL_C_SLONG
+        SQL_C_SSHORT
+        SQL_C_STINYINT
+        SQL_C_ULONG
+        SQL_C_USHORT
+        SQL_C_UTINYINT
+        
+        SQL_C_BOOKMARK
+        
+        SQL_C_GUID
+        
+        
+        # bitmasks for SQL_DYNAMIC_CURSOR_ATTRIBUTES1
+        SQL_CA1_ABSOLUTE
+        SQL_CA1_BOOKMARK
+        SQL_CA1_BULK_ADD
+        SQL_CA1_POS_UPDATE
+        SQL_CA1_BULK_DELETE_BY_BOOKMARK
+        SQL_CA1_BULK_FETCH_BY_BOOKMARK
+        SQL_CA1_BULK_UPDATE_BY_BOOKMARK
+        SQL_CA1_POS_DELETE
+        SQL_CA1_POS_POSITION
+        SQL_CA1_POS_REFRESH
+        SQL_CA1_POSITIONED_UPDATE
+        SQL_CA1_POSITIONED_DELETE
+        SQL_CA1_RELATIVE
+        SQL_CA1_SELECT_FOR_UPDATE
+        SQL_CA1_NEXT
+        SQL_CA1_LOCK_EXCLUSIVE
+        SQL_CA1_LOCK_NO_CHANGE
+        SQL_CA1_LOCK_UNLOCK
+        
+        # Operations in SQLBulkOperations 
+        SQL_ADD
+        SQL_SETPOS_MAX_OPTION_VALUE
+        SQL_UPDATE_BY_BOOKMARK
+        SQL_DELETE_BY_BOOKMARK
+        SQL_FETCH_BY_BOOKMARK
+
+        # SQL_CURSOR_TYPE options 
+        SQL_CURSOR_FORWARD_ONLY
+        SQL_CURSOR_KEYSET_DRIVEN
+        SQL_CURSOR_DYNAMIC
+        SQL_CURSOR_STATIC
+        SQL_CURSOR_TYPE_DEFAULT         # Default value 
+        
+        # SQLExtendedFetch "fFetchType" values 
+        SQL_FETCH_BOOKMARK
+
+        # SQLExtendedFetch "rgfRowStatus" element values 
+        SQL_ROW_SUCCESS
+        SQL_ROW_DELETED
+        SQL_ROW_UPDATED
+        SQL_ROW_NOROW
+        SQL_ROW_ADDED
+        SQL_ROW_ERROR
+
+        SQL_ROW_SUCCESS_WITH_INFO
+        SQL_ROW_PROCEED
+        SQL_ROW_IGNORE
+
+        #ODBC 3.0 SQLGetInfo values
+        SQL_ACTIVE_ENVIRONMENTS
+        SQL_ALTER_DOMAIN
+        
+        SQL_SQL_CONFORMANCE
+        SQL_DATETIME_LITERALS
+        
+        SQL_ASYNC_MODE
+        SQL_BATCH_ROW_COUNT
+        SQL_BATCH_SUPPORT
+        SQL_CATALOG_LOCATION
+        SQL_CATALOG_NAME_SEPARATOR
+        SQL_CATALOG_TERM
+        SQL_CATALOG_USAGE
+        SQL_CONVERT_WCHAR
+        SQL_CONVERT_INTERVAL_DAY_TIME
+        SQL_CONVERT_INTERVAL_YEAR_MONTH
+        SQL_CONVERT_WLONGVARCHAR
+        SQL_CONVERT_WVARCHAR
+        SQL_CREATE_ASSERTION
+        SQL_CREATE_CHARACTER_SET
+        SQL_CREATE_COLLATION
+        SQL_CREATE_DOMAIN
+        SQL_CREATE_SCHEMA
+        SQL_CREATE_TABLE
+        SQL_CREATE_TRANSLATION
+        SQL_CREATE_VIEW
+        SQL_DRIVER_HDESC
+        SQL_DROP_ASSERTION
+        SQL_DROP_CHARACTER_SET
+        SQL_DROP_COLLATION
+        SQL_DROP_DOMAIN
+        SQL_DROP_SCHEMA
+        SQL_DROP_TABLE
+        SQL_DROP_TRANSLATION
+        SQL_DROP_VIEW
+        SQL_DYNAMIC_CURSOR_ATTRIBUTES1
+        SQL_DYNAMIC_CURSOR_ATTRIBUTES2
+        SQL_FORWARD_ONLY_CURSOR_ATTRIBUTES1
+        SQL_FORWARD_ONLY_CURSOR_ATTRIBUTES2
+        SQL_INDEX_KEYWORDS
+        SQL_INFO_SCHEMA_VIEWS
+        SQL_KEYSET_CURSOR_ATTRIBUTES1
+        SQL_KEYSET_CURSOR_ATTRIBUTES2
+        SQL_MAX_ASYNC_CONCURRENT_STATEMENTS
+        SQL_ODBC_INTERFACE_CONFORMANCE
+        SQL_PARAM_ARRAY_ROW_COUNTS
+        SQL_PARAM_ARRAY_SELECTS
+        SQL_SCHEMA_TERM
+        SQL_SCHEMA_USAGE
+        SQL_SQL92_DATETIME_FUNCTIONS
+        SQL_SQL92_FOREIGN_KEY_DELETE_RULE
+        SQL_SQL92_FOREIGN_KEY_UPDATE_RULE
+        SQL_SQL92_GRANT
+        SQL_SQL92_NUMERIC_VALUE_FUNCTIONS
+        SQL_SQL92_PREDICATES
+        SQL_SQL92_RELATIONAL_JOIN_OPERATORS
+        SQL_SQL92_REVOKE
+        SQL_SQL92_ROW_VALUE_CONSTRUCTOR
+        SQL_SQL92_STRING_FUNCTIONS
+        SQL_SQL92_VALUE_EXPRESSIONS
+        SQL_STANDARD_CLI_CONFORMANCE
+        SQL_STATIC_CURSOR_ATTRIBUTES1
+        SQL_STATIC_CURSOR_ATTRIBUTES2
+        
+        SQL_AGGREGATE_FUNCTIONS
+        SQL_DDL_INDEX
+        SQL_DM_VER
+        SQL_INSERT_STATEMENT
+        SQL_CONVERT_GUID
+        SQL_UNION_STATEMENT
+
+        SQL_SQLSTATE_SIZE
+
+        SQL_NO_DATA_FOUND
+
+
+
+
+    # connect using the driver connect function
+    cdef sqlcli.SQLRETURN SQLDriverConnect(
+        sqlcli.SQLHDBC conn_handle,
+        sqlcli.SQLHWND window_handle,
+        sqlcli.SQLCHAR* in_conn_str,
+        sqlcli.SQLSMALLINT in_conn_str_len,
+        sqlcli.SQLCHAR* out_conn_str,
+        sqlcli.SQLSMALLINT buffer_length,
+        sqlcli.SQLSMALLINT* out_conn_str_len,
+        sqlcli.SQLUSMALLINT driver_completion
+    )
+
+'''
+cdef extern from "sqlucode.h":
+    cdef int SQL_WCHAR
+    cdef int SQL_WVARCHAR
+    cdef int SQL_WLONGVARCHAR
+    cdef int SQL_C_WCHAR
+'''

@@ -1,0 +1,10 @@
+ibm_db
+clang
+texttable
+psutil
+bs4
+pywin32; sys.platform == 'win32'
+cython
+lxml
+logbook
+prettytable

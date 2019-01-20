@@ -1,0 +1,16 @@
+LIBRARY SPSERVER
+EXPORTS
+outlanguage
+out_python_paths
+out_ini_read
+out_param
+in_params
+inout_param
+dbinfo_example
+main_example
+all_data_types
+extract_from_clob
+one_result_set_to_caller
+two_result_sets
+general_example
+general_with_nulls_example

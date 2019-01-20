@@ -1,0 +1,10 @@
+*.pyc
+/log*
+*.so
+*.DS_Store
+/build*
+/cython/build/*
+/cython/log/*
+*.o
+/cextensions/osx/*.o
+
