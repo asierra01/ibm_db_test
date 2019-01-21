@@ -47,13 +47,7 @@ class SPClient(CommonTestCase):
         this function update SNAPSHOTTIMESTAMP and return a list with two parameters
         """
         import humanfriendly
-        from cli_test import DB2_TIMESTAMP
-        class SomeTest():
-            def __init__(self):
-                self.year = 20
-                self.mont = 6
-            def year_lola(self, v):
-                self.year1 = v
+        from cli_test_cases import DB2_TIMESTAMP
 
         try:
             self.SNAPSHOTTIMESTAMP  = DB2_TIMESTAMP()
@@ -62,7 +56,6 @@ class SPClient(CommonTestCase):
             mylog.info("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
             #mylog.info("SNAPSHOTTIMESTAMP      '%s'" % type(self.SNAPSHOTTIMESTAMP))
             #mylog.info("SNAPSHOTTIMESTAMP.year '%d' %s" % (self.SNAPSHOTTIMESTAMP.year, type(self.SNAPSHOTTIMESTAMP.year)))
-            #sometest = SomeTest()
             my_list_sizes = spclient_python.python_call_get_db_size(self.conn, mylog.info, self.SNAPSHOTTIMESTAMP)
             if my_list_sizes is not None:
                 mylog.info("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
@@ -71,8 +64,7 @@ class SPClient(CommonTestCase):
                     humanfriendly.format_size(my_list_sizes[0], binary=True),
                     humanfriendly.format_size(my_list_sizes[1], binary=True)))
 
-        except Exception as i:
-            self.print_exception(i)
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info()) 
             return -1
         return 0
@@ -111,8 +103,7 @@ class SPClient(CommonTestCase):
                 self.result.addSkip(self, "Table EMPLOYEE is not present we cant run spclient_python.python_run_the_test_ibm_db")
                 return 0
             spclient_python.python_run_the_test_ibm_db(self.conn, mylog.info)
-        except Exception as i:
-            self.print_exception(i)
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info()) 
             return -1
         return 0

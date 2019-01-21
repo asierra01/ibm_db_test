@@ -8,3 +8,4 @@ cython
 lxml
 logbook
 prettytable
+humanfriendly

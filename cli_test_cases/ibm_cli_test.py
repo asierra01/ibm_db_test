@@ -27,36 +27,11 @@ from .db2_cli_constants import (
 
 from utils.logconfig import mylog
 import unittest
+from utils.util_unittest import MyTextRunner, MyTextTestResult
 
 __all__ = ['run_Db2Cli_unittest']
 
-try:
-    os.remove('traces.log')
-except:
-    pass
 
-
-"""
-class Db2CliTest(object):
-    '''testing ibm cli code an area at a time'''
-
-
-        #myDB2ReadLog = DB2ReadLog(self)
-        #myDB2ReadLog.readlog()
-        # terminate the CLI application by calling a helper
-        #    utility function defined in utilcli.c #
-        myDB2ReadLog = DB2ReadLog(self,self.hdbc)
-        #myDB2ReadLog.changeSQLF_DBTN_LOGARCHMETH1_Parameter() #this only need to runs once
-        #myDB2ReadLog.Create_DummyData()
-        myDB2ReadLog.readlog()
-        rc = self.db2_cli_test.CLIAppTermShort()
-
-        return rc
-"""
-
-
-
-from util_unittest import MyTextRunner, MyTextTestResult
 
 def run_Db2Cli_unittest():
     """unittest way of testing ibm db2 cli code"""

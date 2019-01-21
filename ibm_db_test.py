@@ -31,7 +31,7 @@ from cli_test_cases import Db2_Cli
 
 from ibm_db_test_cases import * #@UnusedWildImport
 from utils.logconfig import mylog # @UnusedImport
-from util_unittest import MyTextRunner, MyTextTestResult
+from utils.util_unittest import MyTextRunner, MyTextTestResult
 
 
 __all__ = ['run_ibm_db_test']

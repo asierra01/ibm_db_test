@@ -24,7 +24,7 @@ import pprint
 import traceback
 from unittest.case import _UnexpectedSuccess
 from cli_test_cases import Db2_Cli
-import util_unittest
+from utils.util_unittest import MyTextTestResult
 from multiprocessing import Value
 from ctypes import c_bool
 
@@ -311,7 +311,7 @@ exc '%s'
         mylog.info("cls %s" % cls)
         cls.someparamter = 42
         if cls.result is None:
-            cls.result = util_unittest.MyTextTestResult(stream=sys.stderr, descriptions=True, verbosity=1) 
+            cls.result = MyTextTestResult(stream=sys.stderr, descriptions=True, verbosity=1) 
         some_methods = inspect.getmembers(cls, predicate=inspect.ismethod)
         cls.my_test_functions = [] # here I inject property test_functions 
         my_test_functions_for_logs = []

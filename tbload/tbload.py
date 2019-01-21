@@ -33,7 +33,7 @@ sys.path.append(os.path.join(os.getcwd(),"cli_test"))
 #print sys.path
 
 
-from cli_test.db2_cli_constants import (
+from cli_test_cases.db2_cli_constants import (
    SQL_USE_LOAD_INSERT,
    SQLU_NON_RECOVERABLE_LOAD,
    SQL_ATTR_USE_LOAD_API,
@@ -57,7 +57,7 @@ from cli_test.db2_cli_constants import (
    SQL_USE_LOAD_OFF,
    SQL_METH_D)
 from utils.logconfig import mylog
-from cli_test.sp_get_dbsize_info import sp_get_dbsize_info
+from cli_test_cases.cli_test_sp_get_dbsize_info import sp_get_dbsize_info
 from tbload_util import (struct_sqlu_media_list,
                          POINTER_T,
                          struct_sqldcol,
@@ -165,35 +165,35 @@ class Tbload_load(Db2_Cli):
         if ret == -1:
             return
 
-    def do_the_job(self):
+    def do_the_job_TABLE_LOAD(self):
         """does a cli load SQL_ATTR_USE_LOAD_API
         by inserting NUM_ITERATIONS on table TABLE_LOAD (Some_Data  VARCHAR(100))
         """
         #COMPRESS YES ON TBNOTLOG "
         if platform.system() == "Windows":
             self.SAMPLE_DATA      = "dummy data" + "X"*40
-            self.DB2_BATCH_INSERT = os.getenv('DB2_BATCH_INSERT', '150000')
+            self.DB2_BATCH_INSERT = self.my_dict['DB2_BATCH_INSERT']
             self.ARRAY_SIZE       = int(self.DB2_BATCH_INSERT)
             self.NUM_ITERATIONS   = 100
             self.CREATE_TABLE     = """
 CREATE TABLE 
-    %s.TABLE_LOAD (Some_Data  VARCHAR(100))
+    "%s".TABLE_LOAD (Some_Data  VARCHAR(100))
 NOT LOGGED INITIALLY
 IN TBNOTLOG 
-""" % self.DB2_USER.upper() #IN TESTTS_8k COMPRESS YES
+""" % self.my_dict['DB2_USER'].upper() #IN TESTTS_8k COMPRESS YES
 
         elif platform.system() == "Darwin":
             self.SAMPLE_DATA        = "dummy data"+ "X"*40
-            self.DB2_BATCH_INSERT   = os.getenv('DB2_BATCH_INSERT', '1000')
+            self.DB2_BATCH_INSERT   = self.my_dict['DB2_BATCH_INSERT']
             self.ARRAY_SIZE         = int(self.DB2_BATCH_INSERT)
             self.NUM_ITERATIONS     = 20
             # "CREATE TABLE LOADTABLE (Col1 VARCHAR(30))"
             # IN TBNOTLOG 
             self.CREATE_TABLE    = """
 CREATE TABLE 
-    %s.TABLE_LOAD (Some_Data  VARCHAR(100))
+    "%s".TABLE_LOAD (Some_Data  VARCHAR(100))
 NOT LOGGED INITIALLY
-""" % self.DB2_USER.upper()
+""" % self.my_dict['DB2_USER'].upper()
 
             mylog.info("Using DB2_BATCH_INSERT '%s'" % self.DB2_BATCH_INSERT)
 
@@ -203,9 +203,9 @@ NOT LOGGED INITIALLY
             self.NUM_ITERATIONS  = 3
             self.CREATE_TABLE    = """
 CREATE TABLE 
-    %s.TABLE_LOAD (Some_Data  VARCHAR(100))
+    "%s".TABLE_LOAD (Some_Data  VARCHAR(100))
 NOT LOGGED INITIALLY
-""" % self.DB2_USER.upper()
+""" % self.my_dict['DB2_USER'].upper()
 
         if self.FAST_TEST:
             self.ARRAY_SIZE      = 10
@@ -294,7 +294,7 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         self.pLoadStruct.piLocalMsgFileName = cast(self.pMessageFile, POINTER_T(c_char))
         self.pDataDescriptor.dcolmeth = SQL_METH_D;
 
-        statementText =  c_char_p("DROP TABLE %s.TABLE_LOAD" % self.DB2_USER.upper())
+        statementText =  c_char_p("""DROP TABLE "%s".TABLE_LOAD""" % self.my_dict['DB2_USER'].upper())
         mylog.info("statementText \n'%s' size '%d' " % (statementText.value, self.libc.strlen(statementText)))
         cliRC= self.libcli64.SQLExecDirect(self.hstmt,
                                            statementText,
@@ -383,7 +383,7 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         #mylog.info("buf   %s '%s' %d" % (buf,buf.raw, len(buf.raw)))
         mylog.info("prepare the INSERT statement ")
 
-        statementText = c_char_p( "INSERT INTO %s.TABLE_LOAD VALUES (?)" % self.DB2_USER)
+        statementText = c_char_p( """INSERT INTO "%s".TABLE_LOAD VALUES (?)""" % self.my_dict['DB2_USER'].upper())
         mylog.info("statementText '%s'" % statementText.value)
         cliRC= self.libcli64.SQLPrepare(self.hstmt,
                                        statementText,
@@ -492,20 +492,20 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
                                 Last_Name  VARCHAR(21))
         """
         self.CREATE_TABLE    = """
-CREATE TABLE %s.TEST_LOAD_INSERT_CUSTOMER (
+CREATE TABLE "%s".TEST_LOAD_INSERT_CUSTOMER (
 Cust_Num    INTEGER,  
 First_Name  VARCHAR(21), 
 Last_Name   VARCHAR(21))
 NOT LOGGED  INITIALLY
 IN TBNOTLOG 
-""" % self.DB2_USER.upper() #IN TESTTS_8k COMPRESS YES
+""" % self.my_dict['DB2_USER'].upper() #IN TESTTS_8k COMPRESS YES
 
         if platform.system() == "Windows":
             self.ARRAY_SIZE      = self.DB2_BATCH_INSERT
             self.NUM_ITERATIONS  = 100
 
         elif platform.system() == "Darwin":
-            self.DB2_BATCH_INSERT = os.getenv('DB2_BATCH_INSERT', '1000')
+            self.DB2_BATCH_INSERT = self.my_dict['DB2_BATCH_INSERT']
             self.ARRAY_SIZE       = self.DB2_BATCH_INSERT
             self.NUM_ITERATIONS   = 20
             # "CREATE TABLE LOADTABLE (Col1 VARCHAR(30))"
@@ -612,7 +612,7 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""");
         self.First_Name_L= (c_int32    * (self.ARRAY_SIZE ) ) ()
         self.Last_Name_L = (c_int32    * (self.ARRAY_SIZE ) ) ()
 
-        statementText =  c_char_p("DROP TABLE %s.TEST_LOAD_INSERT_CUSTOMER" % self.DB2_USER)
+        statementText =  c_char_p("""DROP TABLE "%s".TEST_LOAD_INSERT_CUSTOMER""" % self.my_dict['DB2_USER'].upper())
         mylog.info("statementText \n'%s' size '%d' " % (statementText.value,self.libc.strlen(statementText)))
         cliRC= self.libcli64.SQLExecDirect(self.hstmt,
                                            statementText,
@@ -634,8 +634,8 @@ allocate a buffer to hold data to insert
 initialize the array of rows")
 prepare the INSERT statement """)
 
-        statementText = c_char_p( "INSERT INTO %s.TEST_LOAD_INSERT_CUSTOMER VALUES (?,?,?)" % self.DB2_USER.upper())
-        mylog.info("statementText '%s'" % statementText.value)
+        statementText = c_char_p( """INSERT INTO "%s".TEST_LOAD_INSERT_CUSTOMER VALUES (?,?,?)""" % self.my_dict['DB2_USER'].upper())
+        mylog.info("statementText \n'%s'" % statementText.value)
         cliRC= self.libcli64.SQLPrepare(self.hstmt,
                                        statementText,
                                        self.libc.strlen(statementText));
@@ -814,7 +814,7 @@ class initialize():
     def __init__(self):
         tbload_load = Tbload_load()
 
-        tbload_load.do_the_job()
+        tbload_load.do_the_job_TABLE_LOAD()
         tbload_load.do_the_job_TEST_LOAD_INSERT_CUSTOMER()
 
         my_test_ibm_db = Db_Size()
