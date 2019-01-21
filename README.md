@@ -5,7 +5,7 @@ Go to directory cextensions, this will create the python c extension, spclient_p
 ```
 python setup.py build 
 ```
-if usinng python3
+if using python3
 ```
 python3 setup.py build 
 ```
