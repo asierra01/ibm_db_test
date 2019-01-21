@@ -11,7 +11,7 @@ import sys  # @Importredefinition
 
 from ibm_db_test import run_ibm_db_test
 from utils.handler_sigint import set_signal_int
-from cli_test.ibm_cli_test import run_Db2Cli_unittest
+from cli_test_cases.ibm_cli_test import run_Db2Cli_unittest
 from set_users import set_users
 
 from oci_test import DB2_OCI_TEST  # @UnusedImport

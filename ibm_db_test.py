@@ -26,7 +26,7 @@
 from __future__ import absolute_import
 import unittest
 
-from cli_test import Db2_Cli
+from cli_test_cases import Db2_Cli
 
 
 from ibm_db_test_cases import * #@UnusedWildImport
@@ -34,9 +34,6 @@ from utils.logconfig import mylog # @UnusedImport
 from util_unittest import MyTextRunner, MyTextTestResult
 
 
-"""
-call monreport.connection(30); 
-"""
 __all__ = ['run_ibm_db_test']
 
 def run_ibm_db_test():
