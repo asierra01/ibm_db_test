@@ -13,13 +13,14 @@ also while there type
 ```
 python compile_code_spserver_udfsrv.py
 ```
-This will compile spserver with some local modifications and udfsrv (under win64, linux or darwin). Next, copy the resulting (so, dll) to the DB2 function directory
+This will compile spserver with some local modifications and udfsrv (under win64, linux or darwin). Next, it will copy the resulting (so, dll) to the DB2 function directory
 
 to run the test
 ```
 python -m unittest cli_test_cases
 python -m unittest ibm_db_test_cases
 python -m unittest oci_test
+python tbload\tbload.py
 ```
 Another way to run the test, edit/change conn.ini, set 
 ```
