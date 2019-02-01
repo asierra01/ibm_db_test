@@ -1,5 +1,24 @@
 # ibm_db_test
 Testing python ibm_db module, create a python ibm_db c extension spclient_python. Uses some store proc, cython and ctypes. Execute using ctypes or cython bulk insert into DB2, execute or migrate some db2 cli c examples in python, execute using ctypes some DB2 oci samples.
+# Interesting testing
+I coded two store procedure embedding python on the backend
+1-OUT_INI_READ
+2-OUT_PYTHON_PATHS
+The first one read an from conn.ini a variable, the second one returns all the sys.path. If you look into python documentation https://docs.python.org/2/library/sys.html, sys.path is a python list, so I use things like list_path_size = PyList_Size(sys_path) to iterate the list, return as an out store procedure variable the sys.path content, below is how I register this procedure.
+```
+CREATE OR REPLACE PROCEDURE OUT_PYTHON_PATHS (OUT sys_path VARCHAR(2999))
+SPECIFIC CLI_OUT_PYTHON_PATHS
+DYNAMIC RESULT SETS 0
+DETERMINISTIC
+LANGUAGE C 
+PARAMETER STYLE SQL
+NO DBINFO
+FENCED NOT THREADSAFE
+PROGRAM TYPE SUB
+EXTERNAL NAME 'spserver!out_python_paths'
+```
+
+# Running the test
 
 Go to directory cextensions, this will create the python c extension, spclient_python.
 ```
