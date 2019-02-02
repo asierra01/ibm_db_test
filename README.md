@@ -6,7 +6,7 @@ I coded two store procedure embedding python on the backend
 1-OUT_INI_READ
 2-OUT_PYTHON_PATHS
 ```
-The first one read an from conn.ini a variable, the second one returns all the sys.path content separated by \n. If you look into python documentation https://docs.python.org/2/library/sys.html, sys.path is a python list, so I use things like list_path_size = PyList_Size(sys_path) to iterate the list, return as an out store procedure variable the sys.path content, below is how I register this procedure.
+The first one read an from file conn.ini a variable, the second one returns all the sys.path content separated by \n. If you look into python documentation https://docs.python.org/2/library/sys.html, sys.path is a python list, so I use things like list_path_size = PyList_Size(sys_path) to iterate the list, return as an out store procedure variable the sys.path content. Below, is how I register these procedures.
 ```
 CREATE OR REPLACE PROCEDURE OUT_PYTHON_PATHS (OUT sys_path VARCHAR(2999))
 SPECIFIC CLI_OUT_PYTHON_PATHS
@@ -18,6 +18,21 @@ NO DBINFO
 FENCED NOT THREADSAFE
 PROGRAM TYPE SUB
 EXTERNAL NAME 'spserver!out_python_paths'
+
+CREATE OR REPLACE PROCEDURE OUT_INI_READ (
+IN  env_var_in  CHAR(50),
+OUT env_var_out VARCHAR(2999)
+)
+SPECIFIC CLI_OUT_INI_READ
+DYNAMIC RESULT SETS 0
+DETERMINISTIC
+LANGUAGE C 
+PARAMETER STYLE SQL
+NO DBINFO
+FENCED NOT THREADSAFE
+PROGRAM TYPE SUB
+EXTERNAL NAME 'spserver!out_ini_read'@
+
 ```
 To call it as, CALL OUT_PYTHON_PATHS (?).
 # Running the test
