@@ -34,7 +34,22 @@ PROGRAM TYPE SUB
 EXTERNAL NAME 'spserver!out_ini_read'@
 
 ```
-To call it as, CALL OUT_PYTHON_PATHS (?).
+To call it as
+```
+CALL OUT_PYTHON_PATHS (?)
+CALL OUT_INI_READ ("DB2_INSTANCE", ?)
+```
+if conn.ini is not present it will return something like this
+```
+call OUT_INI_READ('DB2_INSTANCE', ?)
+
+  Value of output parameters
+  --------------------------
+  Parameter Name  : ENV_VAR_OUT
+  Parameter Value : conn.ini = C:\ProgramData\IBM\DB2\DB2COPY2\DB2_01/conn.ini
+DSN is NULL
+```
+meaning the conn.ini was not found on the indicated path.
 # Running the test
 
 Go to directory cextensions, this will create the python c extension, spclient_python.pyd (python27) or spclient_python.cp37-win_amd64.pyd (python37), depending where you are running the test (win64, lin64 or darwin).
