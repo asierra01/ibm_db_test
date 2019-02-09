@@ -1,7 +1,7 @@
 # ibm_db_test
 Testing python ibm_db module, create a python ibm_db c extension spclient_python. Uses some store proc, cython and ctypes. Execute using ctypes or cython bulk insert into DB2, execute or migrate some db2 cli c examples in python, execute using ctypes some DB2 oci samples.
 # Interesting testing
-I coded two store procedure embedding python on the backend
+There are two store procedure embedding python on the backend, would like to add a pyarrow, parquet, fast-load to db2 test. 
 ```
 1-OUT_INI_READ
 2-OUT_PYTHON_PATHS
