@@ -112,7 +112,7 @@ def set_users():
         DB2_SVC_NAME     = get_config('DB2_SVC_NAME', '')
         DB2_PRINT_DESCRIBE_COLS = get_config('DB2_PRINT_DESCRIBE_COLS', '0')
         all_keys         = get_my_dict()
-    else:
+    else:# as conn.ini is not present try to fill the values with os env variables 
         DB2_USER      = os.getenv('DB2_USER')
         DB2_USER2     = os.getenv('DB2_USER2')
         if DB2_USER is None:
