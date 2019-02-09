@@ -99,13 +99,15 @@ AUTHORIZATION
         self.rest_UDF_found = self.if_routine_present(self.getDB2_USER(), "HTTPGETCLOBXML")
         if self.rest_UDF_found:
             mylog.info("UDF 'HTTPGETCLOBXML' present")
+        else:
+            mylog.warn("UDF 'HTTPGETCLOBXML' not present")
         return 0
 
     def test_register_function(self):
-        str_sql3 = """
+        str_sql = """
 
 CREATE OR REPLACE FUNCTION 
-    "%s".httpGetClob(url VARCHAR(2048), httpHeader XML AS CLOB (10K))
+    "{schema}".httpGetClob(url VARCHAR(2048), httpHeader XML AS CLOB (10K))
 RETURNS CLOB(5M)
 EXTERNAL NAME 'com.ibm.db2.rest.DB2UDFWrapperXml!httpGetClob'
 LANGUAGE JAVA
@@ -116,11 +118,9 @@ CALLED ON NULL INPUT
 NO SQL
 NO EXTERNAL ACTION
 @
-""" % self.getDB2_USER()
-        str_sql4 = """
 
 CREATE OR REPLACE FUNCTION 
-    "%s".httpGetClob(url VARCHAR(2048), httpHeader CLOB (10K))
+    "{schema}".httpGetClob(url VARCHAR(2048), httpHeader CLOB (10K))
 RETURNS CLOB(5M)
 EXTERNAL NAME 'com.ibm.db2.rest.DB2UDFWrapper!httpGetClob'
 LANGUAGE JAVA
@@ -131,11 +131,10 @@ CALLED ON NULL INPUT
 NO SQL
 NO EXTERNAL ACTION
 @
-""" % self.getDB2_USER()
+""".format(schema = self.getDB2_USER())
         self.rest_UDF_found = False
         if not self.rest_UDF_found:
-            _ret = self.run_statement(str_sql3)
-            _ret = self.run_statement(str_sql4)
+            _ret = self.run_statement(str_sql)
         else:
             mylog.warning("httpGetClob found so I am not registering it ")
 

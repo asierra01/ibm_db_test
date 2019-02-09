@@ -113,7 +113,7 @@ executing  %s
                     'db2 terminate']
             self.call_cmd(cmds)
 
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info())
             return -1
 
@@ -127,7 +127,7 @@ executing  %s
                     'db2 terminate']
             self.call_cmd(cmds)
 
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info()) 
             return -1
 

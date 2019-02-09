@@ -9,6 +9,10 @@ from . import CommonTestCase
 from texttable import Texttable
 
 from utils.logconfig import mylog
+from multiprocessing import Value
+from ctypes import c_bool
+
+execute_once = Value(c_bool, False)
 
 __all__ = ['Get_OS_UserGroups']
 
@@ -21,6 +25,12 @@ class Get_OS_UserGroups(CommonTestCase):
 
     def runTest(self):
         super(Get_OS_UserGroups, self).runTest()
+        with execute_once.get_lock():
+            if execute_once.value:
+                mylog.debug("we already ran")
+                return
+            execute_once.value = True
+
         if self.mDb2_Cli is None:
             return
         self.test_get_user_groups()
@@ -91,14 +101,14 @@ User= '%s'
 
 
     def test_get_user_groups(self):
-        """get user groups
+        """get OS user groups
 
         """
         sql_str =  """
 SELECT 
     * 
 FROM TABLE 
-    (SYSPROC.AUTH_LIST_GROUPS_FOR_AUTHID ('{user}')) AS T    
+    (SYSPROC.AUTH_LIST_GROUPS_FOR_AUTHID ('{user}')) AS T
 """.format(user=self.getDB2_USER())
         table = Texttable()
         table.set_deco(Texttable.HEADER)
@@ -110,6 +120,7 @@ FROM TABLE
 
 
         try:
+            mylog.info("executing \n%s\n" % sql_str)
             stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
             self.mDb2_Cli.describe_columns(stmt1)
             dictionary = ibm_db.fetch_both(stmt1)
@@ -121,7 +132,7 @@ FROM TABLE
 
             mylog.info("\n%s\n" % table.draw())
 
-        except Exception as e:
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info())
             return -1
         return 0

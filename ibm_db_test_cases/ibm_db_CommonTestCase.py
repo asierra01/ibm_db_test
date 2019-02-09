@@ -259,7 +259,7 @@ exc '%s'
 
     def call_cmd(self, cmds):
         """This function spawn a shell cmd (windows, cmd.exe) (linux, /bin/bash)
-        to execute cmd line commands
+        to execute commands using the shell 
 
         Parameters
         ----------
@@ -290,6 +290,7 @@ exc '%s'
 
         proc.stdin.close()
         lines = proc.stdout.readlines()
+        proc.stdout.close()
 
         #mylog.info("\n%s" % pprint.pformat(lines))
         long_text = ""
@@ -308,7 +309,7 @@ exc '%s'
 
     @classmethod
     def setUpClass(cls):
-        mylog.info("cls %s" % cls)
+        mylog.debug("cls %s" % cls)
         cls.someparamter = 42
         if cls.result is None:
             cls.result = MyTextTestResult(stream=sys.stderr, descriptions=True, verbosity=1) 
@@ -335,17 +336,16 @@ exc '%s'
 tuple (method, parameters)
 '%s' 
 cls.test_functions 
-%s""" % (
-                cls.__name__,
-                pprint.pformat(my_test_functions_for_logs)))
+%s""" % (cls.__name__,
+         pprint.pformat(my_test_functions_for_logs)))
         else:
             mylog.debug("my_test_functions_for_logs %s" % my_test_functions_for_logs)
 
     def if_schema_present(self, schema_name):
         """helper function
         """
+        schema_found = False
         try:
-            schema_found = False
             sql_str = """
 SELECT
     SCHEMANAME
@@ -357,7 +357,6 @@ WHERE
             mylog.debug("executing \n%s" % sql_str)
             stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
             dictionary = ibm_db.fetch_both(stmt1)
-            schema_found = False
             while dictionary:
                 if dictionary['SCHEMANAME'].strip() == schema_name:
                     schema_found = True
@@ -371,7 +370,7 @@ WHERE
         return schema_found
 
     def if_routine_present(self, schema_name, routinename):
-        """helper function to check if table is present in the backend
+        """helper function to check if routine is present in the backend
 
         Parameters
         ----------
@@ -382,22 +381,23 @@ WHERE
         found = False
         try:
             sql_str = """
-SELECT * 
+SELECT 
+    UPPER(ROUTINENAME) as ROUTINENAME, UPPER(SPECIFICNAME) as SPECIFICNAME
 FROM 
     SYSCAT.ROUTINES
 WHERE 
-    SPECIFICNAME = '%s'
-""" % routinename.upper()
+    UPPER(SPECIFICNAME) = UPPER('%s')
+""" % routinename
             proc = ibm_db.exec_immediate(self.conn, sql_str)
             dictionary = ibm_db.fetch_assoc(proc) 
             rows_count = ibm_db.num_rows(proc)
             mylog.debug("rows_count %d" % rows_count)
-
             while dictionary:
 
                 routine_name = dictionary['ROUTINENAME']
-                mylog.debug("ROUTINENAME '%s'='%s'" % (routine_name, routinename.upper()))
-                if routine_name.upper() == routinename.upper():
+                specific_name = dictionary['SPECIFICNAME']
+                mylog.info("SPECIFICNAME '%s' ROUTINENAME '%s'='%s'" % (specific_name, routine_name, routinename.upper()))
+                if routine_name == routinename.upper() or specific_name == routinename.upper():
                     found = True
                     dictionary = False
                 else:
@@ -409,7 +409,7 @@ WHERE
             mylog.exception("%s %s" % ( i, type(i)))
 
         if not found:
-            mylog.warning("Found ? '%s'" % found)
+            mylog.warning("'%s.%s' Found ? '%s'" % (schema_name, routinename, found))
         return found
 
     def if_table_present_common(self, conn, table_name, schema_name):
@@ -505,7 +505,7 @@ stmt_errormsg : '%s'""" %  (ex, type(ex), stmt_error, stmt_errormsg))
                 out += record_table._hline()
         return out
 
-    def print_keys(self, one_dictionary, human_format=False, Print=True):
+    def print_keys(self, one_dictionary, human_format=False, Print=True, table_name=''):
         """helper function to log a dict
 
         Parameters
@@ -524,6 +524,8 @@ stmt_errormsg : '%s'""" %  (ex, type(ex), stmt_error, stmt_errormsg))
         table_keys.set_header_align(['l', 'l', 'l'])
         self.max_value_size = 0
         self.max_key_size = 0
+        if table_name == "":
+            table_name = sys._getframe(  ).f_back.f_code.co_name
 
         for key in one_dictionary.keys():
             if type(key) is int:
@@ -534,29 +536,51 @@ stmt_errormsg : '%s'""" %  (ex, type(ex), stmt_error, stmt_errormsg))
 
                 if human_format:
                     if type(one_dictionary[key]) in [int, long]:
+                        val = one_dictionary[key]
+
                         if key not in ['RELEASE',
                                        'CODEPAGE',
                                        'MAXFILOP',
                                        'BUFFPAGE',
+                                       'APPLICATION_HANDLE',
                                        'LOCKLIST',
                                        'DATABASE_LEVEL',
                                        'PAGESIZE',
                                        'AUTONOMIC_SWITCHES']:
-                            val = one_dictionary[key]
-                            if key in ['DBHEAP',
-                                       'LOGBUFSZ',
-                                       'UTIL_HP_SZ',
-                                       'LOGFILSZ',
-                                       'STMT_HEAP',
-                                       'STMTHEAP',
-                                       'APPLHEAPSZ',
-                                       'SHEAPTHRES_SHR',
-                                       'DATABASE_MEMORY',
-                                       'APPGROUP_MEM_SZ',
-                                       'STAT_HEAP_SZ',
-                                       'UTIL_HEAP_SZ']:
-                                val *= 4*1024 # 4K 
-                            my_value = self.human_format(val)
+                            my_value = val
+                        if key in ['FS_TOTAL_SIZE_KB',
+                                   'FS_USED_SIZE_KB']:
+                            my_value = self.human_format(val,   multiply=1024)
+
+                        if key in ['PEAK_MEMBER_MEM',
+                                   'MAX_MEMBER_MEM',
+                                   'CURRENT_MEMBER_MEM',
+                                   'MEMORY_POOL_USED',
+                                   'MEMORY_POOL_USED_HWM',
+                                   'MEMORY_SET_SIZE',
+                                   'MEMORY_SET_COMMITTED',
+                                   'MEMORY_SET_USED',
+                                   'MEMORY_SET_USED_HWM',
+                                   'TOTAL_LOG_AVAILABLE_KB',
+                                   'TOTAL_LOG_USED_TOP_KB',
+                                   'TOTAL_LOG_USED_KB']:
+                            my_value = self.human_format(val,   multiply=1)
+
+                        if key in ['DBHEAP',
+                                   'LOGBUFSZ',
+                                   'UTIL_HP_SZ',
+                                   'LOGFILSZ',
+                                   'STMT_HEAP',
+                                   'STMTHEAP',
+                                   'FS_TOTAL_SIZE',
+                                   'APPLHEAPSZ',
+                                   'SHEAPTHRES_SHR',
+                                   'DATABASE_MEMORY',
+                                   'APPGROUP_MEM_SZ',
+                                   'STAT_HEAP_SZ',
+                                   'UTIL_HEAP_SZ']:
+                            #val *= 4*1024 # 4K 
+                            my_value = self.human_format(val, multiply=1024*4)
 
                 if len(str(my_value)) > self.max_value_size:
                     self.max_value_size = len(str(my_value))
@@ -582,7 +606,7 @@ stmt_errormsg : '%s'""" %  (ex, type(ex), stmt_error, stmt_errormsg))
         table_keys._width[1] = self.max_value_size + 3
         table_keys._width[0] = self.max_key_size + 1
         if Print:
-            mylog.info("\n%s\n" % table_keys.draw())
+            mylog.info("table name : %s\n%s\n" % (table_name, table_keys.draw()))
         else:
             mylog.debug("\n%s\n" % table_keys.draw())
         return table_keys
@@ -595,7 +619,7 @@ stmt_errormsg : '%s'""" %  (ex, type(ex), stmt_error, stmt_errormsg))
         if type(num) is str:
             return num
 
-        if num > 10000000000000:
+        if num > 100000000000000:
             return "Too Big"
 
         if multiply is not None:

@@ -106,13 +106,15 @@ WHERE
 
             if TBLSP14K_found:
                 sql_str = """
-DROP TABLESPACE TBLSP14K@
+DROP TABLESPACE TBLSP14K
+@
 """
                 mylog.info("executing %s" % sql_str)
                 self.run_statement(sql_str)
 
             sql_str = """
-DROP BUFFERPOOL bp4k@
+DROP BUFFERPOOL bp4k
+@
 """
             mylog.info("executing \n%s\n" % sql_str)
             self.run_statement(sql_str)
@@ -276,6 +278,8 @@ IMMEDIATE SIZE AUTOMATIC
 SELECT * 
 FROM 
     SYSIBMADM.CONTAINER_UTILIZATION
+ORDER BY
+    TBSP_ID
 """
             mylog.info("executing \n%s" % sql_str)
             stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
@@ -284,21 +288,22 @@ FROM
             mylog.info("\nCONTAINER_UTILIZATION, System managed space = SMS, Database managed space = DMS\n\n")
             table = Texttable()
             table.set_deco(Texttable.HEADER)
-            table.set_cols_align(['l',  # text
-                                  'l',
-                                  'l',
-                                  'l',
-                                  'l',
-                                  'l',
-                                  'r',
-                                  'r',
-                                  'l',
-                                  'l',
-                                  'l'])
+            cols_align = ['l',  
+                          'l',
+                          'l',
+                          'l',
+                          'l',
+                          'l',
+                          'r',
+                          'r',
+                          'l',
+                          'l',
+                          'l']
+            table.set_cols_align(cols_align)
             str_header = "ID NAME TYPE TBSP_NAME FS_USED_SIZE_KB FS_TOTAL_SIZE_KB TOTAL_PAGES USABLE_PAGES TBSP_ID SNAPSHOT_TIMESTAMP DBPARTN"
             spl = str_header.split()
             table.header(spl)
-            table.set_header_align(['l' for _i in spl])
+            table.set_header_align(cols_align)
             table.set_cols_dtype(['t' for _i in spl])
             table.set_cols_width([3, 53, 17, 18, 16, 16, 12, 15, 10, 18, 10])
 
@@ -326,14 +331,10 @@ FROM
 
             table._width[1] = max_len_CONTAINER_NAME
             mylog.info("\n%s\n" % table.draw())
-            if one_dictionary['FS_USED_SIZE_KB'] is not None:
-                one_dictionary['FS_USED_SIZE_KB'] *= 1024
-            else:
+            if one_dictionary['FS_USED_SIZE_KB'] is None:
                 one_dictionary['FS_USED_SIZE_KB'] = 0
 
-            if one_dictionary['FS_TOTAL_SIZE_KB'] is not None:
-                one_dictionary['FS_TOTAL_SIZE_KB'] *= 1024
-            else:
+            if one_dictionary['FS_TOTAL_SIZE_KB'] is None:
                 one_dictionary['FS_TOTAL_SIZE_KB'] = 0
 
             self.print_keys(one_dictionary, True)

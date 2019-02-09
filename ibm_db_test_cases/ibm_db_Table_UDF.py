@@ -142,7 +142,7 @@ ADD CONSTRAINT
     def test_register_store_proc_select_func_csv_table_into_db2_insert_into(self):
         """Registering sp to insert data from a custom UDF table function
         """
-        sql_str_create_procedure = """
+        sql_str = """
 CREATE OR REPLACE PROCEDURE 
     INSERT_DATA_USING_INSERT_INTO(OUT records_inserted BIGINT)
 
@@ -158,53 +158,53 @@ BEGIN
 
     DELETE FROM "{user}"."TESTING_LOAD_FROM_TABLE_FUNCTION_CSV";
 
-    INSERT INTO 
+    INSERT INTO
        "{user}"."TESTING_LOAD_FROM_TABLE_FUNCTION_CSV" (
-       "Strike", 
-       "Expiry", 
-       "Type", 
-       "Symbol", 
-       "Last", 
-       "Bid", 
-       "Ask", 
-       "Chg", 
-       "PctChg", 
+       "Strike",
+       "Expiry",
+       "Type",
+       "Symbol",
+       "Last",
+       "Bid",
+       "Ask",
+       "Chg",
+       "PctChg",
        "Vol",
-       "Open_Int", 
-       "IV", 
-       "Root", 
-       "IsNonstandard", 
-       "Underlying", 
-       "Underlying_Price", 
-       "Quote_Time", 
+       "Open_Int",
+       "IV",
+       "Root",
+       "IsNonstandard",
+       "Underlying",
+       "Underlying_Price",
+       "Quote_Time",
        "Last_Trade_Date",
        "Date_Downloaded")
 
     SELECT 
-         Strike, 
-         Expiry, 
-         Type, 
-         Symbol, 
-         Last, 
-         Bid, 
-         Ask, 
-         Chg, 
-         PctChg, 
-         Vol, 
-         Open_Int, 
-         IV, 
+         Strike,
+         Expiry,
+         Type,
+         Symbol,
+         Last,
+         Bid,
+         Ask,
+         Chg,
+         PctChg,
+         Vol,
+         Open_Int,
+         IV,
          Root,
-        CAST(IsNonstandard AS SMALLINT), 
-        Underlying, 
-        Underlying_Price, 
-        Quote_Time, 
-        Last_Trade_Date, 
+        CAST(IsNonstandard AS SMALLINT),
+        Underlying,
+        Underlying_Price,
+        Quote_Time,
+        Last_Trade_Date,
         Date_Downloaded
-    FROM TABLE 
+    FROM TABLE
         ("{user}".TableUDF_CSV('{db2_csv_test_file}')) LIMIT 500;
 
     SELECT 
-        COUNT(*) INTO v_numRecords 
+        COUNT(*) INTO v_numRecords
     FROM 
         "{user}".TESTING_LOAD_FROM_TABLE_FUNCTION_CSV;
 
@@ -219,10 +219,10 @@ END@
     --load from csvcursor of cursor  insert into "SOME_SCHEMA"."SOME_TABLE" ROWWCOUNT 1000;
 
         '''
-        sql_str_create_procedure = sql_str_create_procedure.replace("SOME_SCHEMA", self.getDB2_USER())
-        sql_str_create_procedure = sql_str_create_procedure.replace("SOME_TABLE", "TESTING_LOAD_FROM_TABLE_FUNCTION_CSV")
-        #sql_str_execute_proc=""
-        ret = self.run_statement(sql_str_create_procedure)
+        sql_str = sql_str.replace("SOME_SCHEMA", self.getDB2_USER())
+        sql_str = sql_str.replace("SOME_TABLE", "TESTING_LOAD_FROM_TABLE_FUNCTION_CSV")
+        mylog.info("executing \n%s\n" % sql_str)
+        ret = self.run_statement(sql_str)
         return ret
 
     def test_select_csv_table_into_db2_insert_into_store_proc(self):
@@ -235,6 +235,7 @@ END@
         '''
         try:
             if self.DB2_CSV_TEST_FILE is None:
+                mylog.warning("DB2_CSV_TEST_FILE not set in conn.ini file")
                 self.result.addSkip(self, "DB2_CSV_TEST_FILE not set in conn.ini file")
                 return 0
 
@@ -336,10 +337,9 @@ FROM TABLE
         CREATE OR REPLACE FUNCTION 
             TableUDF_CSV(csv_filename varchar(150))
         """
-        _sql_str_drop_func_NOT_USED =   "DROP FUNCTION %s.TableUDF_CSV" % self.getDB2_USER()
-        sql_str_create_func =  """
+        sql_str =  """
 CREATE OR REPLACE FUNCTION 
-    TableUDF_CSV(csv_filename varchar(150)) 
+    "%s".TableUDF_CSV(csv_filename varchar(150)) 
 RETURNS 
     TABLE(
         Strike             FLOAT,
@@ -374,31 +374,19 @@ SCRATCHPAD 200
 FINAL CALL 
 DISALLOW PARALLEL 
 NO DBINFO 
-""" #% self.DB2_USER.upper()
+@
+""" % self.getDB2_USER()
         try:
             if self.func_TableUDF_CSV_present and False:
                 mylog.warning("func TableUDF_CSV is present no need to re-register it")
                 self.result.addSkip(self, 
                                     "'test_register_TableUDF_CSV_function' func TableUDF_CSV is present no need to re-register it")
                 return 0
-
-            stmt1 = None
-            mylog.info("""
-
-executing  %s
-"""  % sql_str_create_func)
-            stmt1 = ibm_db.exec_immediate(self.conn, sql_str_create_func)
-            ibm_db.commit(self.conn)
+            mylog.info("executing \n%s\n" % sql_str)
+            self.run_statement(sql_str)
             mylog.info("done registering the UDF FUNCTION TableUDF_CSV")
-            ibm_db.free_result(stmt1)
 
         except Exception as i:
-            self.print_exception(i)
-            if stmt1:
-                self.mDb2_Cli.STMT_HANDLE_CHECK(spclient_python.python_get_stmt_handle_ibm_db(stmt1),
-                                                spclient_python.python_get_hdbc_handle_ibm_db(stmt1),
-                                                    -1,
-                                                    "ibm_db.exec_immediate")
             self.result.addFailure(self, sys.exc_info()) 
             return -1
 
@@ -448,7 +436,7 @@ SELECT
     Last_Trade_Date,
     Date_Downloaded
 FROM 
-    TABLE( {schema}.TableUDF_CSV('{db2_csv_test_file}')) 
+    TABLE( "{schema}".TableUDF_CSV('{db2_csv_test_file}')) 
 """.format(
         schema=self.getDB2_USER(),
         db2_csv_test_file=self.DB2_CSV_TEST_FILE)
@@ -541,7 +529,7 @@ TYPE     '%s'""" % (STRIKE, EXPIRY, TYPE))
 SELECT 
     Strike
 FROM 
-    TABLE( %s.TableUDF_CSV('%s'))
+    TABLE( "%s".TableUDF_CSV('%s'))
 """ % (
                 self.getDB2_USER(),
                 self.DB2_CSV_TEST_FILE)

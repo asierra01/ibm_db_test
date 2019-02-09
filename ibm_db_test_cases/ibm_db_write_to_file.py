@@ -94,12 +94,11 @@ CALL "{schema}".PROC1()
             try:
                 f_csv = open("%s/myfile.csv" % test_file)
                 f_csv_content = f_csv.read()
-                mylog.info("%s/myfile.csv' \n%s\n" % (test_file, f_csv_content))
+                mylog.info("content of ...'%s/myfile.csv' \n%s\n" % (test_file, f_csv_content))
                 f_csv.close()
             except IOError as e:
                 mylog.error("IOError %s" % e)
-        except Exception as i:
-            self.print_exception(i)
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info()) 
             return -1
         return 0

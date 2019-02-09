@@ -537,12 +537,12 @@ ORDER BY
                 'r',
                 "l"])
             header_list = ["TYPE",
-                          "NAME",
+                          "CONTAINER_NAME",
                           "TBSP_NAME",
-                          "RE_TI",
-                          "TOT_PAGS",
-                          "TOT_SIZ",
-                          "USE_SIZ",
+                          "POOL_READ_TIME",
+                          "TOTAL_PAGES",
+                          "FS_TOTAL_SIZE",
+                          "FS_USED_SIZE",
                           "DB_STORAGE_PATH_ID",
                           "PAG_READ",
                           "USABLE_PAGES",
@@ -550,12 +550,17 @@ ORDER BY
             table.set_cols_dtype(['t' for _i in header_list])
             table.set_header_align(['l' for _i in header_list])
             table.header(header_list)
-            table.set_cols_width( [15,52,15,5,8,10,8,10,10,13,15])
+            table.set_cols_width( [15,52,19,5,8,10,8,10,10,13,15])
+            len_cont_name = 0
             while dictionary:
                 one_dictionary = dictionary
+                cont_name = dictionary['CONTAINER_NAME']
+                if len(cont_name) > len_cont_name:
+                    len_cont_name = len(cont_name)
+
                 my_list = [
                   dictionary['CONTAINER_TYPE'],
-                  dictionary['CONTAINER_NAME'], 
+                  cont_name, 
                   dictionary['TBSP_NAME'],
                   dictionary['POOL_READ_TIME'],
                   dictionary['TOTAL_PAGES'],
@@ -567,6 +572,7 @@ ORDER BY
                   dictionary['PAGES_WRITTEN']]
                 table.add_row(my_list)
                 dictionary = ibm_db.fetch_both(stmt1)
+            table._width[1] = len_cont_name +1
             mylog.info("\n%s\n\n" % table.draw())
             self.print_keys(one_dictionary, human_format=True)
 
@@ -581,8 +587,8 @@ ORDER BY
         select_str = """
 select 
     member, 
-    substr(db_name,1,10)as db_name, 
-    substr(memory_set_type,1,10) as set_type, 
+    substr(db_name, 1, 12) as db_name, 
+    substr(memory_set_type, 1, 12) as set_type, 
     memory_set_size, 
     memory_set_committed, 
     memory_set_used, 

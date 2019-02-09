@@ -34,18 +34,18 @@ class Experimental_Test(CommonTestCase):
         self.test_print_ibm_db_dir()
 
     def test_print_keys(self):
-        str_header = "key_ibm_db    value"
+        str_header = "ibm_db_key    value"
         table_keys = Texttable()
         table_keys.set_deco(Texttable.HEADER)
         table_keys.header(str_header.split())
         table_keys.set_cols_width( [40, 20])
+        table_keys.set_header_align(['l', 'l'])
 
         if ibm_db:
             for key in ibm_db.__dict__.keys():
-                #mylog.info(key)
                 if (type(key), str) and key.startswith("SQL_ATTR"):
                     table_keys.add_row([key,ibm_db.__dict__[key]])
-            mylog.debug("\n\n%s\n" % table_keys.draw())
+            mylog.info("\n\n%s\n" % table_keys.draw())
         return 0
 
 
@@ -96,21 +96,20 @@ RESTRICT@""" % schema_name
                        targettbsp,
                        errortabschema,
                        errortab)
-            mylog.info("executing \nCALL %s\n parameters \n%s\n" % (sql_str, params))
-            stmt = ibm_db.callproc(self.conn, 
-                                   sql_str, 
-                                   params,
-                                   )
+            mylog.info("executing \nCALL %s%s\n" % (sql_str, params))
+            stmt = ibm_db.callproc(self.conn,
+                                   sql_str,
+                                   params)
             ibm_db.commit(self.conn)
             mylog.debug("stmt %s" % list(stmt))
             stmt_error    = ibm_db.stmt_error()
             stmt_errormsg = ibm_db.stmt_errormsg()
             if stmt_error != "":
-                mylog.info("stmt_error '%s' stmt_errormsg '%s'" % (stmt_error,stmt_errormsg))
+                mylog.info("stmt_error '%s' stmt_errormsg '%s'" % (stmt_error, stmt_errormsg))
             ibm_db.free_result(stmt[0])
 
-        except Exception as i:
-            self.result.addFailure(self,sys.exc_info())
+        except Exception as _i:
+            self.result.addFailure(self, sys.exc_info())
             return -1
         return 0
 
@@ -118,7 +117,7 @@ RESTRICT@""" % schema_name
         """SYSPROC.ADMIN_DROP_SCHEMA 
         """
         try:
-            sql_str= "SYSPROC.ADMIN_DROP_SCHEMA ( ?,?,?,?)"
+            sql_str= "SYSPROC.ADMIN_DROP_SCHEMA"
             schema = targetschema #"TEST_SCHEMA"
             if schema is None:
                 return
@@ -129,20 +128,20 @@ RESTRICT@""" % schema_name
                        null,
                        errortabschema,
                        errortab)
-            mylog.info("executing \nCALL %s\n parameters \n%s\n" % (sql_str,params))
+            mylog.info("executing \nCALL %s%s\n" % (sql_str, params))
             stmt = ibm_db.callproc(self.conn, 
                                    "SYSPROC.ADMIN_DROP_SCHEMA", 
                                    params)
             ibm_db.commit(self.conn)
-            mylog.info("stmt '%s'" % list(stmt[1:]))
+            mylog.debug("stmt '%s'" % list(stmt[1:]))
             stmt_error    = ibm_db.stmt_error()
             stmt_errormsg = ibm_db.stmt_errormsg()
             if stmt_error != "":
-                mylog.info("stmt_error %s stmt_errormsg %s" % (stmt_error,stmt_errormsg))
+                mylog.info("stmt_error %s stmt_errormsg %s" % (stmt_error, stmt_errormsg))
 
             ibm_db.free_result(stmt[0])
 
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self,sys.exc_info())
             return -1
         return 0

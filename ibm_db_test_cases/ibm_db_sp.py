@@ -394,9 +394,9 @@ GRANT EXECUTE ON PROCEDURE "SOME_SCHEMA".EXTRACT_ARRAY TO PUBLIC
         #print (self.getDB2_USER())
         #print (self.mDb2_Cli.encode_utf8)
 
-        sql_str = sql_str.replace("SOME_SCHEMA", (self.getDB2_USER()))
+        sql_str = sql_str.replace("SOME_SCHEMA", self.getDB2_USER())
         sql_str = sql_str.replace("SOME_TABLE", "TESTING_LOAD_FROM_TABLE_FUNCTION_CSV")
-        
+
         if not self.if_table_present_common(self.conn, 
                                            "TESTING_LOAD_FROM_TABLE_FUNCTION_CSV",
                                             self.getDB2_USER()):
@@ -405,6 +405,7 @@ GRANT EXECUTE ON PROCEDURE "SOME_SCHEMA".EXTRACT_ARRAY TO PUBLIC
             self.EXTRACT_ARRAY_registered = False
             self.result.addSkip(self, warn_msg)
             return 0
+        mylog.info("executing \n%s\n" % sql_str)
         ret = self.run_statement(sql_str)
         if ret == -1:
             mylog.error("failed")
@@ -418,13 +419,20 @@ GRANT EXECUTE ON PROCEDURE "SOME_SCHEMA".EXTRACT_ARRAY TO PUBLIC
 
     def test_check_table_TESTING_LOAD_FROM_TABLE_FUNCTION_CSV(self):
         try:
-            sql_str_check_table =  """select * from SYSCAT.TABLES where SYSCAT.TABLES.TABNAME='TESTING_LOAD_FROM_TABLE_FUNCTION_CSV'"""
+            sql_str_check_table =  """
+select 
+    * 
+from 
+    SYSCAT.TABLES 
+where 
+    SYSCAT.TABLES.TABNAME='TESTING_LOAD_FROM_TABLE_FUNCTION_CSV'
+"""
             stmt1 = ibm_db.exec_immediate (self.conn, sql_str_check_table)
             dic = ibm_db.fetch_both(stmt1)
             ibm_db.free_result(stmt1)
             if dic:
                 self.print_keys(dic)
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info()) 
             return -1
         return 0
@@ -500,7 +508,7 @@ EXTERNAL NAME 'spserver!out_python_paths'@
 
 """
         if not self.spserver_present:
-            mylog.warning("spserver_present not presnt we cant register sp OUT_PYTHON_PATHS")
+            mylog.warning("spserver not presnt we cant register sp OUT_PYTHON_PATHS")
             self.result.addSkip(self, "spserver not presnt we cant register sp 'OUT_PYTHON_PATHS'")
             return 0
         ret = self.run_statement(sql_str)
@@ -645,7 +653,8 @@ EXTERNAL NAME 'spserver!outlanguage'@
                 self.result.addSkip(self, "Under linux we cant run sp\n%s\n" % str(i))
                 return 0
 
-            mylog.info("""dont forget db2 GRANT EXECUTE ON PROCEDURE "{user}".ALL_DATA_TYPES to user {user}""".format(user = self.getDB2_USER()))
+            mylog.info("""dont forget db2 GRANT EXECUTE ON PROCEDURE "{user}".ALL_DATA_TYPES to user {user}""".format(
+                user = self.getDB2_USER()))
             self.result.addFailure(self, sys.exc_info())
             return -1
 
@@ -678,7 +687,7 @@ ONE_RESULT_SET (IN salValue DOUBLE)
         try:
             start_time = datetime.now()
             salValue = 5556.0
-            mylog.info("executing CALL ONE_RESULT_SET (%s)" % salValue)
+            mylog.info("\nexecuting CALL ONE_RESULT_SET (%s)" % salValue)
             my_table = Texttable()
             my_table.set_deco(Texttable.HEADER)
             str_header  = "NAME JOB SALARY"

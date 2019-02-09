@@ -31,8 +31,8 @@ FROM
             stmt2 = ibm_db.exec_immediate(self.conn, sql_str)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
-            one_dictionary = dictionary
             while dictionary:
+                one_dictionary = dictionary
                 one_dictionary['TOTAL_LOG_AVAILABLE_KB'] = long(float(one_dictionary['TOTAL_LOG_AVAILABLE_KB']) * 1024)
                 one_dictionary['TOTAL_LOG_USED_TOP_KB']  = long(float(one_dictionary['TOTAL_LOG_USED_TOP_KB']) * 1024)
                 one_dictionary['TOTAL_LOG_USED_KB']      = long(float(one_dictionary['TOTAL_LOG_USED_KB']) * 1024)
@@ -41,7 +41,7 @@ FROM
 
             ibm_db.free_result(stmt2)
 
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self,sys.exc_info())
             return -1
 

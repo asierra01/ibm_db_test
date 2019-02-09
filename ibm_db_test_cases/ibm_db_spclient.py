@@ -37,7 +37,7 @@ class SPClient(CommonTestCase):
         try:
             spclient_python.python_create_dummy_exception("hello spclient_python.Error")
         except spclient_python.Error as e:
-            mylog.error("spclient_python.Error '%s'" % e)
+            mylog.error("expected provoked exception\nspclient_python.Error '%s'" % e)
             return 0
         return 0
 

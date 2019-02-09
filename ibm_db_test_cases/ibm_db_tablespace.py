@@ -78,7 +78,7 @@ WHERE
                 stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
                 ibm_db.free_result(stmt1)
             else:
-                mylog.warn("TABLESPACE TBLSP14K doesn't exist, so we cant GRANT use on a nonexistance tablespace")
+                mylog.warning("TABLESPACE TBLSP14K doesn't exist, so we cant GRANT use on a nonexistance tablespace")
                 self.result.addSkip(self, "TABLESPACE TBLSP14K doesn't exist so we cant GRANT use on a nonexistance tablespace, skipping test")
                 return 0
 
@@ -224,35 +224,18 @@ FROM
 
     def test_create_tmp_tablespace(self):
         """ test_create_tmp_tablespace
-        FUNCTION: DB2 UDB, buffer pool services, sqlbDMSAddContainerRequest, probe:867
-MESSAGE : ZRC=0x8002003D=-2147352515=SQLB_CONTAINER_ALREADY_ADDED
-          "Duplicate container"
-DATA #1 : <preformatted>
-Container /Users/mac/Downloads/scripts/databasebenchmark/user_tmp_tbsp already used by tablespace USR_TMP_TBSP
-
-here we can check if it exist or not
- INFO  139 - ibm_db_tablespace_test TBSP_UTILIZATION() 
-
-TBSP_UTILIZATION, System managed space = SMS, Database managed space = DMS
-
-ID           NAME          TYPE    CONT_TYP   STATE    PERCENT   USABLE_SIZ   USED_SIZE    FREE_SIZE   PAGE_SIZE    NUM_CON   TOTAL_PAGE   CREATE_TIME      DBPGNAME    
-                                      E                             E_KB                                            TAINERS       S                                     
-========================================================================================================================================================================
-1     TEMPSPACE1           SMS     SYSTEMP    NORMAL    100.00        8.00K        8.00K        0.00   8192          BLAH     BLAH
-
         """
         #mylog.info ("CREATE USER TEMPORARY TABLESPACE")
         try:
-            filename = os.path.join(os.getcwd(), "user_tmp_tbsp_test")
-            #PAGESIZE 8K
+            filename = os.path.join(os.getcwd(), "tbsp_test_file")
 
             select_str = """
 
-CREATE USER TEMPORARY TABLESPACE 
-    usr_tmp_tbsp_test
+CREATE TABLESPACE 
+    tbsp_test_file
 MANAGED BY DATABASE
 USING (FILE '%s' 5000, FILE '%s' 5000)
-""" % (filename,filename)
+""" % (filename, filename)
 
             mylog.info ("executing\n %s \n " % select_str)
             stmt1 = None
@@ -272,7 +255,7 @@ USING (FILE '%s' 5000, FILE '%s' 5000)
             if self.conn:
                 ibm_db.rollback(self.conn)
             stmt_error    = ibm_db.stmt_error()
-
+            mylog.error(stmt_error)
             if '55009' ==  stmt_error:
                 mylog.warning("""
 If you are running this test connecting to DB2 with different userid, 
@@ -282,7 +265,7 @@ this user id needs to have write acccess to %s
             if '42731' == stmt_error:
                 #Container is already assigned to the table space 
                 mylog.warning("""
-stmt_error 42731 usr_tmp_tbsp_test Container is already assigned to the table space, 
+stmt_error 42731 tbsp_test_file Container is already assigned to the table space, 
 added addExpectedFailure""")
                 self.result.addExpectedFailure(self, sys.exc_info())
                 return 0
@@ -315,7 +298,7 @@ WHERE
                 dictionary = ibm_db.fetch_both(stmt_select)
             ibm_db.free_result(stmt_select)
             if not found:
-                mylog.warn("BufferPool bp4k not found so we cant create a tablesapce tblsp14k on a bufferpool that doesnt exist")
+                mylog.warning("BufferPool bp4k not found so we cant create a tablesapce tblsp14k on a bufferpool that doesnt exist")
                 self.result.addSkip(self, "cant create tblsp14k")
                 return 0
 

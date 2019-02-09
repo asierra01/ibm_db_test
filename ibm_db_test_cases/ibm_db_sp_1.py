@@ -40,13 +40,16 @@ class SpExtractSimpleArray(CommonTestCase):
     def test_drop_everything(self):
         sql_drop = """
 DROP PROCEDURE
-   EXTRACT_SIMPLE_ARRAY@
+   EXTRACT_SIMPLE_ARRAY
+@
 
 DROP TABLE 
-   TESTING_TABLE_WITH_INT_COLUMN@
+   TESTING_TABLE_WITH_INT_COLUMN
+@
 
 DROP TYPE 
-   SIMPLEARRAY@"""
+   SIMPLEARRAY
+@"""
         ret = self.run_statement(sql_drop)
         return ret
 
@@ -55,7 +58,8 @@ DROP TYPE
         """
         sql_str_create_type_array= """
 CREATE OR REPLACE TYPE 
-   SIMPLEARRAY AS INTEGER ARRAY[10000]@
+   SIMPLEARRAY AS INTEGER ARRAY[10000]
+@
 """
         ret = self.run_statement(sql_str_create_type_array)
         return ret
@@ -65,12 +69,14 @@ CREATE OR REPLACE TYPE
         """
         sql_str = """
 CREATE TABLE
-    TESTING_TABLE_WITH_INT_COLUMN (SOME_INT_COLUMN INTEGER)@
+    TESTING_TABLE_WITH_INT_COLUMN (SOME_INT_COLUMN INTEGER)
+@
 
 INSERT INTO 
     TESTING_TABLE_WITH_INT_COLUMN (SOME_INT_COLUMN)
 VALUES 
-    (10), (20), (30), (40), (50), (60), (70), (80), (90), (100)@
+    (10), (20), (30), (40), (50), (60), (70), (80), (90), (100)
+@
 
 CREATE OR REPLACE PROCEDURE 
     "SOME_SCHEMA".EXTRACT_SIMPLE_ARRAY(
@@ -160,7 +166,7 @@ END
             start_time = datetime.now()
             mylog.info("executing ibm_db.callproc EXTRACT_SIMPLE_ARRAY")
             stmt1, out_array, out_records_in_array, out_records_in_cursor = ibm_db.callproc(self.conn, 
-                                                                    "EXTRACT_SIMPLE_ARRAY", 
+                                                                    "EXTRACT_SIMPLE_ARRAY",
                                                                     (out_array, out_records_in_array, out_records_in_cursor, ))
             self.mDb2_Cli.describe_parameters(stmt1)
             mylog.info("""

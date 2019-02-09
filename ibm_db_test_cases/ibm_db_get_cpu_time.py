@@ -7,6 +7,10 @@ import ibm_db
 
 from . import CommonTestCase
 from utils.logconfig import mylog
+from multiprocessing import Value
+from ctypes import c_bool
+
+execute_once = Value(c_bool,False)
 
 __all__ = ['GetCPUTime']
 
@@ -20,6 +24,12 @@ class GetCPUTime(CommonTestCase):
     def runTest(self):
         if self.mDb2_Cli is None:
             return
+
+        with execute_once.get_lock():
+            if execute_once.value:
+                mylog.debug("we already ran")
+                return
+            execute_once.value = True
         self.test_register_get_cpu_time()
         self.test_run_get_cpu_time()
 

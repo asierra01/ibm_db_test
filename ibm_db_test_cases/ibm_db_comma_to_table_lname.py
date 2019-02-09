@@ -9,8 +9,12 @@ import ibm_db
 from ibm_db_test_cases import CommonTestCase
 from utils.logconfig import mylog
 from texttable import Texttable
+from multiprocessing import Value
+from ctypes import c_bool
 
 __all__ = ['CommaToTable']
+
+execute_once = Value(c_bool, False)
 
 class CommaToTable(CommonTestCase):
     """CommaToTable"""
@@ -19,8 +23,15 @@ class CommaToTable(CommonTestCase):
         super(CommaToTable, self).__init__(testname, extraarg)
 
     def runTest(self):
+        super(CommaToTable, self).runTest()
         if self.mDb2_Cli is None:
             return
+        with execute_once.get_lock():
+            if execute_once.value:
+                mylog.debug("we already ran")
+                return
+            execute_once.value = True
+
         self.test_register_comma_to_table()
         self.test_run_comma_to_table()
 

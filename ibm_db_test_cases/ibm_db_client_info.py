@@ -7,7 +7,10 @@ from ibm_db_test_cases import CommonTestCase
 from utils.logconfig import mylog
 import pprint
 import platform
+from multiprocessing import Value
+from ctypes import c_bool
 
+execute_once = Value(c_bool, False)
 from cli_test_cases.db2_cli_constants import (
     SQL_ATTR_INFO_USERID,
     SQL_ATTR_INFO_WRKSTNNAME,
@@ -26,6 +29,13 @@ class ClientInfoTest(CommonTestCase):
         super(ClientInfoTest, self).__init__(testName, extraArg)
 
     def runTest(self):
+        super(ClientInfoTest, self).runTest()
+        with execute_once.get_lock():
+            if execute_once.value:
+                mylog.debug("we already ran")
+                return
+            execute_once.value = True
+
         self.test_client_info()
 
     def test_client_info(self):

@@ -35,11 +35,11 @@ class DB2Pipe(CommonTestCase):
 
     def setUp(self):
         super(DB2Pipe, self).setUp()
-        mylog.info("setUp")
+        mylog.debug("setUp")
 
     def tearDown(self):
         super(DB2Pipe, self).tearDown()
-        mylog.info("tearDown")
+        mylog.debug("tearDown")
 
     def test_register_pipe1(self):
         """SET SERVEROUTPUT ON@
@@ -155,7 +155,7 @@ CALL GET_MESSAGE_PIPE1(?,?,?,?,?,?)@
             self.mDb2_Cli.describe_parameters(stmt1[0])
             ibm_db.free_stmt(stmt1[0])
 
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info())
             return -1
         return 0

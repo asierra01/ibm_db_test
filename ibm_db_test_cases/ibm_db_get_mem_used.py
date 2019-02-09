@@ -54,7 +54,7 @@ where
                 dictionary['MEMORY_POOL_USED'] *= 1024
                 dictionary['MEMORY_POOL_USED_HWM'] *= 1024
 
-            self.print_keys(dictionary, True)
+            self.print_keys(dictionary, True, table_name='MON_GET_MEMORY_POOL')
 
             ibm_db.free_result(stmt2)
 

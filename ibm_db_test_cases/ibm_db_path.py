@@ -21,7 +21,6 @@ class DB_Path(CommonTestCase):
 
     def runTest(self):
         super(DB_Path, self).setUp()
-        mylog.info("runTest")
         with execute_once.get_lock():
             if execute_once.value:
                 mylog.debug("we already ran")
@@ -38,7 +37,7 @@ class DB_Path(CommonTestCase):
         table.set_deco(Texttable.HEADER)
         table.header(header_list)
         table.set_cols_dtype(['t' for _i in header_list] )
-        table.set_cols_width( [28,60,15])
+        table.set_cols_width( [28, 60, 15])
         table.set_cols_align(['l', 'l', 'l'])
         table.set_header_align(['l', 'l', 'l'])
 
@@ -118,7 +117,7 @@ FROM
         table.set_deco(Texttable.HEADER)
         table.header(header_list)
         table.set_cols_dtype(['t' for _i in header_list] )
-        table.set_cols_width( [28,60, 10, 13, 13, 13])
+        table.set_cols_width( [28,60, 10, 13, 13, 18])
         table.set_cols_align(['l' for _i in header_list])
         table.set_header_align(['l' for _i in header_list])
 

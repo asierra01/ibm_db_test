@@ -78,6 +78,7 @@ FROM
                    dictionary['TOTAL_SYS_CPU_TIME'],
                    dictionary['STMT_TEXT'].replace(",", ",\n").
                         replace("WHEN", "\nWHEN").
+                        replace(";", ";\n").
                         replace("ORDER BY", "\nORDER BY").
                         replace("WHERE","\nWHERE").
                         replace(" IN","\n IN").
@@ -89,7 +90,7 @@ FROM
                 dictionary = ibm_db.fetch_both(stmt2)
 
             mylog.info("\n\n%s\n" % table.draw())
-            self.print_keys(one_dictionary)
+            self.print_keys(one_dictionary, table_name='current_queries')
 
             ibm_db.free_result(stmt2)
 

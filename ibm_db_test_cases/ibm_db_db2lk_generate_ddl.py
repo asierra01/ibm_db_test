@@ -37,7 +37,7 @@ class DB2LKGenerateDDLTest(CommonTestCase):
         self.test_DB2LK_GENERATE_DDL_SYSFUN(schema=self.getDB2_USER())
         self.test_DB2LK_GENERATE_DDL_SYSFUN(schema="SYSFUN")
         self.test_DB2LK_GENERATE_DDL_SYSFUN(schema="SYSPROC")
-        
+
 
     def test_DB2LK_GENERATE_DDL_SYSFUN(self, schema="SYSFUN"):
         """

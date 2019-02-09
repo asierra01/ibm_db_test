@@ -12,7 +12,8 @@ from multiprocessing import Value
 from ctypes import c_bool
 
 execute_once = Value(c_bool,False)
-
+execute_once_setup = Value(c_bool, False)
+execute_once_teardown = Value(c_bool, False)
 
 __all__ = ['Admin_Get_Tab_Info']
 
@@ -39,25 +40,71 @@ class Admin_Get_Tab_Info(CommonTestCase):
         self.test_get_temp_tables()
         self.test_get_temp_columns()
 
+    def setUp(self):
+        super(Admin_Get_Tab_Info, self).setUp()
+        mylog.debug("setUp")
+        with execute_once_setup.get_lock():
+            if execute_once_setup.value:
+                return
+            execute_once_setup.value = True
+        sql_str = """
+
+CREATE BUFFERPOOL BP_4K IMMEDIATE
+SIZE 1000 AUTOMATIC
+PAGESIZE 4K
+@
+
+CREATE TEMPORARY TABLESPACE 
+    TMP_TBSP_4K
+PAGESIZE 4K
+MANAGED BY AUTOMATIC STORAGE
+BUFFERPOOL BP_4K
+@
+
+DECLARE GLOBAL TEMPORARY TABLE "SESSION"."TEMP_EMP"
+      (EMPNO  CHAR(6) NOT NULL,
+       SALARY DECIMAL(9, 2),
+       BONUS  DECIMAL(9, 2),
+       COMM   DECIMAL(9, 2)) 
+ON COMMIT PRESERVE ROWS 
+NOT LOGGED
+@
+CREATE GLOBAL TEMPORARY TABLE "SESSION"."TEMP_EMP_A" 
+LIKE "SESSION"."TEMP_EMP"
+@
+"""
+        mylog.info("executing \n%s\n" % sql_str)
+        self.run_statement(sql_str)
+
+    def tearDown(self):
+        super(Admin_Get_Tab_Info, self).tearDown()
+        mylog.debug("tearDown")
+        with execute_once_teardown.get_lock():
+            if execute_once_teardown.value:
+                return
+            execute_once_teardown.value = True
+        sql_str_drop = """
+DROP TABLE  "SESSION"."TEMP_EMP"
+@
+DROP TABLE  "SESSION"."TEMP_EMP_A"
+@
+DROP TABLESPACE TMP_TBSP_4K
+@
+DROP BUFFERPOOL BP_4K
+@
+"""
+        mylog.info("executing \n%s\n" % sql_str_drop)
+        self.run_statement(sql_str_drop)
 
     def test_get_temp_tables(self):
         try:
-            _select_count_str = """
-SELECT  
-    count(*)   
-FROM 
-    TABLE (SYSPROC.ADMIN_GET_TEMP_TABLES(APPLICATION_ID(), '', '')) AS T """
 
             select_str = """
 SELECT  *
 FROM 
     TABLE (SYSPROC.ADMIN_GET_TEMP_TABLES(NULL, '', '')) AS T """
             stmt2 = None
-            mylog.info("executing \n%s\n" %select_str)
-            #stmt1 = ibm_db.exec_immediate(self.conn, select_count_str)
-            #dictionary = ibm_db.fetch_both(stmt1)
-            #print dictionary
-            #return
+            mylog.info("executing \n%s\n" % select_str)
             stmt2 = ibm_db.exec_immediate(self.conn, select_str)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
@@ -70,7 +117,7 @@ FROM
             table.set_header_align(['l' for _i in list_cols])
             table.set_cols_align(['l','l','l','l','l','l','l'])
             table.set_cols_width([43,30,20,10,10,10,10])
-
+            one_dic = None
             while dictionary :
                 one_dic = dictionary
                 my_row = []
@@ -81,17 +128,14 @@ FROM
                     else:
                         my_row.append(dictionary[key])
 
-                self.print_keys(one_dic, True)
                 table.add_row(my_row)
-                dictionary = False
-                #dictionary = ibm_db.fetch_both(stmt2)
+                dictionary = ibm_db.fetch_both(stmt2)
 
-            #self.print_keys(one_dic, True)
+            if one_dic:
+                self.print_keys(one_dic, True)
             mylog.info("\n\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt2)
-
         except Exception as _i:
-            self.print_exception(_i)
             self.result.addFailure(self,sys.exc_info())
             return -1
 
@@ -99,20 +143,17 @@ FROM
 
     def test_get_temp_columns(self):
         try:
-            select_str = """
+            sql_str = """
 SELECT * 
     FROM TABLE (
        SYSPROC.ADMIN_GET_TEMP_COLUMNS(
           NULL, '', '')) 
-    AS T """
+    AS T 
+"""
             stmt2 = None
-            mylog.info("executing \n%s\n" %select_str)
-            #stmt1 = ibm_db.exec_immediate(self.conn, select_count_str)
-            #dictionary = ibm_db.fetch_both(stmt1)
-            #print dictionary
-            #return
+            mylog.info("executing \n%s\n" % sql_str)
 
-            stmt2 = ibm_db.exec_immediate(self.conn, select_str)
+            stmt2 = ibm_db.exec_immediate(self.conn, sql_str)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
 
@@ -124,26 +165,34 @@ SELECT *
             table.set_header_align(['l' for _i in list_cols])
             table.set_cols_align(['l','l','l','l','l','l','l'])
             table.set_cols_width([43,20,20,15,10,10,10])
-
+            len_name_max = 0
+            len_colname_max = 0
             while dictionary :
-                one_dic = dictionary
                 my_row = []
                 for key in list_cols:
                     if key == "NAME":
-                        my_row.append(dictionary["TABSCHEMA"].strip()+"."+dictionary["TABNAME"])
+                        name = dictionary["TABSCHEMA"].strip()+"."+dictionary["TABNAME"]
+                        if len(name) > len_name_max:
+                            len_name_max = len(name)
+                        my_row.append(name)
+                    elif key == "COLNAME":
+                        colname = dictionary[key]
+                        if len(colname) > len_colname_max:
+                            len_colname_max = len(colname)
+                        my_row.append(colname)
                     else:
                         my_row.append(dictionary[key])
-                self.print_keys(one_dic, True)
                 table.add_row(my_row)
-                dictionary = False
-                #dictionary = ibm_db.fetch_both(stmt2)
+                dictionary = ibm_db.fetch_both(stmt2)
 
             #self.print_keys(one_dic, True)
+            table._width[0] = len_name_max+1
+            table._width[3] = len_colname_max+1
+
             mylog.info("\n\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt2)
 
         except Exception as _i:
-            self.print_exception(_i)
             self.result.addFailure(self,sys.exc_info())
             return -1
 
@@ -192,12 +241,12 @@ FROM
                 self.mDb2_Cli.describe_columns(stmt2)
 
             align = ['l','l','l','l','l','l','l','r','r','r']
-            sizes = [43,18,11,11,15,7,19,20,18,18]
+            sizes = [43,18,11,11,15,7,14,20,18,18]
             dictionary = ibm_db.fetch_both(stmt2)
             col = "NAME DATA_PARTITION_ID STATSTYPE AVAILABLE NO_LOAD_RESTART TABTYPE REORG_PENDING TOTAL_PHYSICAL_SIZE TOTAL_LOGICAL_SIZE RECLAIMABLE_SPACE"
 
             #Mac DB2 10.1 doesnt have column oriented tables
-            if platform.system() != "Darwin" : 
+            if self.server_info.DBMS_VER >= "10.5": 
                 col += " COL_OBJECT_L_SIZE"
                 align.append ("r")
                 sizes.append(18)
@@ -206,7 +255,7 @@ FROM
             table = Texttable()
             table.set_deco(Texttable.HEADER)
             table.header(list_cols)
-            table.set_header_align(['l' for _i in list_cols])
+            table.set_header_align(align)
             table.set_cols_align(align)
 
             my_row = []
@@ -229,7 +278,7 @@ FROM
                                                           "LONG_OBJECT_P_SIZE",
                                                           "LOB_OBJECT_P_SIZE",
                                                           "XML_OBJECT_P_SIZE"]) 
-                        my_row.append(value)
+                        my_row.append("{:,}".format(value))
 
                     elif key == "TOTAL_LOGICAL_SIZE":
                         value = self.extract(dictionary, ["DATA_OBJECT_L_SIZE",
@@ -237,7 +286,7 @@ FROM
                                                           "LONG_OBJECT_L_SIZE",
                                                           "LOB_OBJECT_L_SIZE",
                                                           "XML_OBJECT_L_SIZE"])
-                        my_row.append(value)
+                        my_row.append("{:,}".format(value))
                     elif key == "TOTAL_LOGICAL":
                         my_row.append(dictionary["TABSCHEMA"] + "." + dictionary["TABNAME"])
                     else:

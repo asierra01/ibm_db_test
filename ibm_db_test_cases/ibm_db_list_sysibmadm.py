@@ -40,6 +40,7 @@ class Table_lists(CommonTestCase):
         self.test_list_SYSIBMADM_tbls_privileges()
         self.test_list_SAMPLE_user_privileges()
         self.test_list_SAMPLE_tbls_primary_keys()
+        self.test_list_SAMPLE_tbls_foreign_keys()
 
         self.test_list_SYSIBMADM_XXXX()
         self.test_list_SYSIBM_XXXX()
@@ -231,7 +232,16 @@ ORDER BY
 
         def helper_display_table(dictionary):
             while dictionary:
-                my_row = [" %s.%-20s  " % (dictionary['TABLE_SCHEM'], dictionary['TABLE_NAME']),
+                first_column = '''"%s"."%s"''' % (dictionary['TABLE_SCHEM'], 
+                                                  dictionary['TABLE_NAME'])
+
+                if len(first_column) > self.len_first_column:
+                    self.len_first_column = len(first_column)
+
+                if len(dictionary['PK_NAME']) > self.len_PK_NAME:
+                    self.len_PK_NAME = len(dictionary['PK_NAME'])
+
+                my_row = [first_column,
                           dictionary['COLUMN_NAME'],
                           dictionary['KEY_SEQ'],
                           dictionary['PK_NAME'],
@@ -240,7 +250,9 @@ ORDER BY
                 dictionary = ibm_db.fetch_both(tbls_stament)
             my_row = ["","","",""]
             table.add_row(my_row)
-
+        self.len_last_column = 0
+        self.len_first_column = 0
+        self.len_PK_NAME = 0
         try:
             table_names = []
             tbls_stament = ibm_db.tables(self.conn, None, self.getDB2_USER(), "%", None)
@@ -259,11 +271,15 @@ ORDER BY
             table.header(["full name","COLUMN_NAME", 'KEY_SEQ', 'PK_NAME'])
             table.set_cols_width([45, 20, 10, 50])
 
-            display = True   
+            display = True
             for table_name in table_names:
+                mylog.info("""
+executing ibm_db.primary_keys "%s"."%s"
+""" % (self.getDB2_USER(),
+       table_name))
                 tbls_stament = ibm_db.primary_keys(self.conn,
                                                    None,
-                                                   self.getDB2_USER(), 
+                                                   self.getDB2_USER(),
                                                    table_name)
                 if display: 
                     self.mDb2_Cli.describe_columns(tbls_stament)
@@ -273,7 +289,90 @@ ORDER BY
                 if dictionary:
                     helper_display_table(dictionary)
 
+            table._width[0] = self.len_first_column+1
+            table._width[3] = self.len_PK_NAME+1
             mylog.info("\n\n%s\n\n" % table.draw())
+            ibm_db.free_result(tbls_stament)
+
+        except Exception as _i:
+            self.result.addFailure(self,sys.exc_info())
+            return -1
+
+        return 0
+
+    def test_list_SAMPLE_tbls_foreign_keys(self):
+        """List SAMPLE DB tables foreign_keys""" 
+
+        def helper_display_table(dictionary):
+            while dictionary:
+                first_column = '''"%s"."%s"''' % (dictionary['PKTABLE_SCHEM'],
+                                                  dictionary['PKTABLE_NAME'])
+                last_column  = '''"%s"."%s"''' % (dictionary['FKTABLE_SCHEM'],
+                                                  dictionary['FKTABLE_NAME'])
+
+                if len(first_column) > self.len_first_column:
+                    self.len_first_column = len(first_column)
+
+                if len(last_column) > self.len_last_column:
+                    self.len_last_column = len(last_column)
+
+                if len(dictionary['PK_NAME']) > self.len_PK_NAME:
+                    self.len_PK_NAME = len(dictionary['PK_NAME'])
+
+                my_row = [first_column,
+                          dictionary['PKCOLUMN_NAME'],
+                          dictionary['KEY_SEQ'],
+                          dictionary['PK_NAME'],
+                          last_column
+                          ]
+                table.add_row(my_row)
+                dictionary = ibm_db.fetch_both(tbls_stament)
+            my_row = ["","","","", ""]
+            table.add_row(my_row)
+
+        self.len_last_column = 0
+        self.len_first_column = 0
+        self.len_PK_NAME = 0
+        try:
+            table_names = []
+            tbls_stament = ibm_db.tables(self.conn, None, self.getDB2_USER(), "%", None)
+            dictionary = ibm_db.fetch_both(tbls_stament)
+            while dictionary:
+                table_names.append(dictionary['TABLE_NAME'])
+                dictionary = ibm_db.fetch_both(tbls_stament)
+
+            ibm_db.free_result(tbls_stament)
+
+            table = Texttable()
+            table.set_deco(Texttable.HEADER)
+            table.set_header_align(['l','l', 'l', 'l', 'l'])
+            table.set_cols_dtype(['t','t', 't', 't', 't'])
+            table.set_cols_align(['l','l', 'l', 'l', 'l'])
+            table.header(["full name","COLUMN_NAME", 'KEY_SEQ', 'PK_NAME', 'full name fk table'])
+            table.set_cols_width([45, 20, 10, 50, 45])
+
+            display = True
+            for table_name in table_names:
+                mylog.info("""
+executing ibm_db.foreign_keys "%s"."%s"
+""" % (self.getDB2_USER(),
+       table_name))
+                tbls_stament = ibm_db.foreign_keys(self.conn,
+                                                   None,
+                                                   self.getDB2_USER(),
+                                                   table_name)
+                if display: 
+                    self.mDb2_Cli.describe_columns(tbls_stament)
+                    display = False
+
+                dictionary = ibm_db.fetch_both(tbls_stament)
+                if dictionary:
+                    helper_display_table(dictionary)
+
+            table._width[0] = self.len_first_column+1
+            table._width[3] = self.len_PK_NAME+1
+            table._width[4] = self.len_last_column+1
+            mylog.info("%s %s \n\n%s\n\n" % (self.len_first_column, self.len_last_column, table.draw()))
             ibm_db.free_result(tbls_stament)
 
         except Exception as _i:
@@ -439,7 +538,7 @@ ORDER BY
                 old_table_name = dictionary['TABLE_NAME']
                 table_name = dictionary['TABLE_NAME']
             else:
-                mylog.warn("query ibm_db.table_privileges returned empty")
+                mylog.warning("query ibm_db.table_privileges returned empty")
             while dictionary:
 
                 priv = ""
@@ -684,6 +783,7 @@ ORDER BY
                 if value is not None:
                     value = value.replace(",", ",\n").\
                         replace("WHEN", "\nWHEN").\
+                        replace(";", ";\n").\
                         replace("ORDER BY", "\nORDER BY").\
                         replace("WHERE","\nWHERE").\
                         replace(" IN","\n IN").\
@@ -781,11 +881,16 @@ ORDER BY
                                  'INDEX_LOGICAL_READS']
 
         try:
+            predicate = ""
+            if table_name in ["SNAPAGENT_MEMORY_POOL", "APPL_PERFORMANCE"]:
+                predicate = "ORDER BY AGENT_ID"
             sql_str = """
 SELECT 
     * 
 FROM 
-    %s.%s""" % (schema, table_name)
+    %s.%s
+%s
+""" % (schema, table_name, predicate)
 
             sql_str = self.remake_the_query(sql_str, schema, table_name, numeric_value_columns)
             stmt2 = ibm_db.exec_immediate(self.conn, sql_str)

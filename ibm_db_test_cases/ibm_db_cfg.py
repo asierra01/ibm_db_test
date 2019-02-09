@@ -83,7 +83,7 @@ FROM
         table.set_header_align(['l' for _i in header_list])
         table.set_cols_width( [28, 60, 15, 15])
         table.set_cols_align(['l' for _i in header_list])
-
+        max_value_len = 0
         while dictionary:
             if dictionary['NAME'] in ['comm_bandwidth', 'cpuspeed']:
                 my_float = float(dictionary['VALUE'])
@@ -91,12 +91,17 @@ FROM
             else:
                 value = dictionary['VALUE'] if dictionary['VALUE'] else "" 
 
+            if len(value) > max_value_len:
+                max_value_len = (len(value))
+
             my_list = [dictionary['NAME'],
                        value,
                        dictionary['DATATYPE'],
                        dictionary['VALUE_FLAGS'] if dictionary['VALUE_FLAGS'] else ""]
             table.add_row(my_list)
             dictionary = ibm_db.fetch_both(stmt1)
+
+        table._width[1] = max_value_len+1
         mylog.info("\n%s" % table.draw())
         ibm_db.free_result(stmt1)
 
@@ -106,7 +111,6 @@ FROM
         """SELECT or CONTROL privilege on the DBMCFG administrative view and 
         EXECUTE privilege on the DBM_GET_CFG table function.
         """
-        mylog.info ("GET_DBM_CFG")
         try:
             exec_str = """
 SELECT * 
@@ -123,17 +127,23 @@ FROM
             table.set_cols_width([24, 15, 15, 20, 65])
             table.set_cols_align(["l" for _i in header_list])
             table.set_header_align(["l" for _i in header_list])
-
+            max_DEFERRED_VALUE_len = 0
             dictionary = ibm_db.fetch_both(stmt1)
             while dictionary:
+                DEFERRED_VALUE = dictionary['DEFERRED_VALUE'] if dictionary['DEFERRED_VALUE'] else ""
                 my_row = [dictionary['NAME'],
                           dictionary['DATATYPE'],
                           dictionary['VALUE_FLAGS'] if dictionary['VALUE_FLAGS'] else "",
                           dictionary['DEFERRED_VALUE_FLAGS'] if dictionary['DEFERRED_VALUE_FLAGS'] else "" ,
-                          dictionary['DEFERRED_VALUE'] if dictionary['DEFERRED_VALUE'] else "" 
+                          DEFERRED_VALUE
                           ]
+
+                if len(DEFERRED_VALUE) > max_DEFERRED_VALUE_len:
+                    max_DEFERRED_VALUE_len = len(DEFERRED_VALUE)
                 table.add_row(my_row)
                 dictionary = ibm_db.fetch_both(stmt1)
+
+            table._width[4] = max_DEFERRED_VALUE_len+1
             mylog.info("\n%s" % table.draw())
 
             ibm_db.free_result(stmt1)
@@ -272,6 +282,7 @@ FROM
                 #self.mDb2_Cli.LOGARCHMETH1 = dictionary['LOGARCHMETH1']
                 self.print_keys(dictionary, human_format=True)
                 dictionary = ibm_db.fetch_both(stmt2)
+                break # I only need one DB_CONFIG....he returns 2 ? why ?
 
             ibm_db.free_result(stmt2)
 
@@ -281,10 +292,14 @@ FROM
 
         ibm_db.commit(self.conn)
         exec_str = """
-FLUSH BUFFERPOOL ALL @
-DROP TABLE SESSION.DB_CONFIG@ 
-DROP TABLESPACE MYTSP2@ 
-DROP BUFFERPOOL MY8KPOOL@ 
+FLUSH BUFFERPOOL ALL
+@
+DROP TABLE SESSION.DB_CONFIG
+@ 
+DROP TABLESPACE MYTSP2
+@ 
+DROP BUFFERPOOL MY8KPOOL
+@ 
         """
         mylog.info ("executing \n'%s' " % exec_str)
         self.run_statement(exec_str)
@@ -688,13 +703,19 @@ FROM
             table.set_cols_align(["l" for _i in header_list])
             table.set_cols_width([20, 55, 15, 55])
             table.set_header_align(["l" for _i in header_list])
+            max_len_value = 0
             while dictionary:
+                str_Value = dictionary['VALUE'] if dictionary['VALUE'] else ""
+                if len(str_Value) > max_len_value:
+                    max_len_value = len(str_Value)
                 my_row = [dictionary['NAME'],
-                          dictionary['VALUE'] if dictionary['VALUE'] else "",
+                          str_Value,
                           dictionary['DATATYPE'],
                           dictionary['DEFERRED_VALUE'] if dictionary['DEFERRED_VALUE'] else ""]
                 table.add_row(my_row)
                 dictionary = ibm_db.fetch_both(stmt1)
+            table._width [1] = max_len_value + 1
+            table._width [3] = max_len_value + 1
             mylog.info("\n%s" % table.draw())
             ibm_db.free_result(stmt1)
 
