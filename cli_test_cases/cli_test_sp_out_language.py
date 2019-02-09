@@ -87,7 +87,6 @@ EXTERNAL NAME 'spserver!outlanguage'
         self.register_sp()
 
         self.stmt = c_char_p(select_str)
-        mylog.info("stmt %s" % self.stmt)
         clirc = self.mDb2_Cli.libcli64.SQLPrepare(self.hstmt, self.stmt, SQL_NTS)
 
         self.mDb2_Cli.describe_parameters(self.hstmt)

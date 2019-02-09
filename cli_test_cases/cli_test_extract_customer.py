@@ -55,16 +55,21 @@ class Extract_Customer(Common_Class):
         szSchemaName  = c_char_p(self.encode_utf8(self.mDb2_Cli.my_dict['DB2_USER'].upper()))
         cbSchemaName  = c_ushort(len(szSchemaName.value))
 
-        szTableName   = c_char_p(self.encode_utf8("%")) # % works under Linux
+        szTableName   = c_char_p(self.encode_utf8("CUSTOMER")) # % works under Linux
         cbTableName   = c_ushort(len(szTableName.value))
 
         szTableType   = c_char_p(self.encode_utf8("TABLE"))
         cbTableType   = c_ushort(len(szTableType.value))
 
-        mylog.info("'%s' '%s' '%s' '%s'" % (self.encode_utf8(szCatalogName.value), 
-                                    self.encode_utf8(szSchemaName.value), 
-                                    self.encode_utf8(szTableName.value), 
-                                    self.encode_utf8(szTableType.value)))
+        mylog.info("""
+CatalogName '%s' 
+SchemaName  '%s' 
+TableName   '%s' 
+TableType   '%s'
+""" % (self.encode_utf8(szCatalogName.value),
+       self.encode_utf8(szSchemaName.value),
+       self.encode_utf8(szTableName.value),
+       self.encode_utf8(szTableType.value)))
 
         clirc = self.mDb2_Cli.libcli64.SQLAllocHandle(SQL_HANDLE_STMT,
                                                       self.mDb2_Cli.hdbc,
@@ -83,16 +88,16 @@ class Extract_Customer(Common_Class):
                                                   cbTableType)
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.mDb2_Cli.hdbc, clirc, "SQLTables")
         if clirc != SQL_SUCCESS:
-            mylog.warn("checking if CUSTOMER table is presnt clirc %d" % clirc)
+            mylog.warn("checking if 'CUSTOMER' table is presnt clirc %d" % clirc)
         else:
-            mylog.info("checking if CUSTOMER table present")
+            mylog.info("checking if 'CUSTOMER' table present")
             clirc_fetch = SQL_SUCCESS
             str_CUSTOMER = "CUSTOMER"
             if sys.version_info > (3,):
                 str_CUSTOMER = str_CUSTOMER.encode('utf-8','ignore')
             while clirc_fetch == SQL_SUCCESS:
-                one_character = self.encode_utf8(' ')
-                indicator1 = c_int(0)
+                one_character      = self.encode_utf8(' ')
+                indicator1         = c_int(0)
                 self.table_name    = c_char_p(one_character * 128)
                 clirc_fetch        = self.mDb2_Cli.libcli64.SQLFetch(self.hstmt)
                 if clirc_fetch == SQL_NO_DATA:
@@ -123,7 +128,8 @@ class Extract_Customer(Common_Class):
     def extractcustomer(self):
         self.check_if_table_customer_present()
         if not self.table_customer_present:
-            mylog.warning("table %s.CUSTOMER not present...cant run extractcustomer" % self.mDb2_Cli.my_dict['DB2_USER'].upper())
+            mylog.warning("table %s.CUSTOMER not present...cant run extractcustomer" % 
+                          self.mDb2_Cli.my_dict['DB2_USER'].upper())
             return 
         clirc = self.mDb2_Cli.libcli64.SQLAllocHandle(SQL_HANDLE_STMT,
                                                       self.mDb2_Cli.hdbc, 
@@ -161,7 +167,6 @@ FROM
         table.set_cols_width( [10,70,20,60])
         table.set_header_align(['l', 'l', 'l', 'l'])
 
-
         if clirc == SQL_SUCCESS:
             clirc_fetch = 0
             cust_cid    = c_int64(0)
@@ -169,20 +174,20 @@ FROM
             """
             self.mDb2_Cli.describe_columns(self.hstmt)
 
-            fild_1_size_for_bind       =  c_int(0)
-            fild_2_size_for_bind       =  c_int(0)
-            fild_3_size_for_bind       =  c_int(0)
+            fild_1_size_for_bind       = c_int(0)
+            fild_2_size_for_bind       = c_int(0)
+            fild_3_size_for_bind       = c_int(0)
             cust_xml_data_info         = create_string_buffer(1000)
             cust_xml_data_info_size    = 1000
             cust_xml_data_history      = create_string_buffer(8000)
             cust_xml_data_history_size = 8000
 
             clirc = self.mDb2_Cli.libcli64.SQLBindCol (self.hstmt, #column CID
-                                                           1,
-                                                           SQL_C_LONG,
-                                                           byref(cust_cid),
-                                                           sizeof(cust_cid), 
-                                                           byref(fild_1_size_for_bind))
+                                                       1,
+                                                       SQL_C_LONG,
+                                                       byref(cust_cid),
+                                                       sizeof(cust_cid), 
+                                                       byref(fild_1_size_for_bind))
             mylog.info("clirc %d buffer size for this field cust_cid = c_int64(0) sizeof(cust_cid) %d" % (clirc, sizeof(cust_cid)))
             mylog.debug("1 SQLBindCol %d, expected 0 fild_1_size_for_bind %d" % (clirc,
                                                                                  fild_1_size_for_bind.value))
@@ -194,13 +199,12 @@ FROM
                                            get_linenumber(),
                                            "SQLBindCol")
 
-
             clirc = self.mDb2_Cli.libcli64.SQLBindCol (self.hstmt, #column INFO
-                                                           2,
-                                                           SQL_C_BINARY,
-                                                           byref(cust_xml_data_info),
-                                                           cust_xml_data_info_size, 
-                                                           byref(fild_2_size_for_bind))
+                                                       2,
+                                                       SQL_C_BINARY,
+                                                       byref(cust_xml_data_info),
+                                                       cust_xml_data_info_size, 
+                                                       byref(fild_2_size_for_bind))
             mylog.debug("clirc %d buffer size for this field %d" % (clirc,sizeof(cust_xml_data_info)))
             mylog.debug("2 SQLBindCol %d, expected 0 fild_2_size_for_bind %d " % (
                 clirc,
@@ -254,11 +258,10 @@ FROM
                               pretty]
                     table.add_row(my_row)
             mylog.info("\n%s" % table.draw())
-            mylog.info("done 1")
             clirc = self.mDb2_Cli.libcli64.SQLCloseCursor(self.hstmt)
             self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.mDb2_Cli.hdbc, clirc, "SQLCloseCursor")
         else:
-            mylog.error("SQLExecDirect failed %d" %(clirc))
+            mylog.error("SQLExecDirect failed %d" % clirc)
 
         clirc = self.mDb2_Cli.libcli64.SQLEndTran(SQL_HANDLE_DBC, self.mDb2_Cli.hdbc, SQL_COMMIT)
         self.mDb2_Cli.DBC_HANDLE_CHECK(self.mDb2_Cli.hdbc, clirc,  "SQL_COMMIT SQLEndTran")

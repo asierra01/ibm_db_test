@@ -24,10 +24,10 @@ from . import Common_Class
 
 from .cli_test_db2ApiDef import (
     db2Cfg,
-    struct_sqlca,
+    sqlca,
     POINTER_T,
-    struct_db2CfgParam,
-    struct_db2MediaListStruct,
+    db2CfgParam,
+    db2MediaListStruct,
     db2BackupStruct,
     db2MediaListStruct,
     db2CfgDatabase,
@@ -84,12 +84,12 @@ class DB2Backup(Common_Class):
         self.AppName = "MyAppName_Python"
         self.AppName = self.encode_utf8(self.AppName)
 
-    def changeSQLF_DBTN_LOGARCHMETH1_Parameter(self):
+    def change_SQLF_DBTN_LOGARCHMETH1_Parameter(self):
         """change db cfg parameters
         SQLF_DBTN_LOGARCHMETH1 to LOGRETAIN
         this only needs to run once
 
-        `libcli64.db2CfgSet`
+        uses `libcli64.db2CfgSet`
         """
         self.cfgParameters = (struct_db2CfgParam * 2)() # cli_test.db2CfgGet.struct_db2CfgParam_Array_2 
         self._setParameter(self.cfgParameters[0], SQLF_DBTN_LOGARCHMETH1, "LOGRETAIN")
@@ -103,7 +103,7 @@ class DB2Backup(Common_Class):
         cfgStruct.paramArray = self.cfgParameters 
         cfgStruct.flags      = db2CfgDatabase | db2CfgDelayed
         cfgStruct.dbName     = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        sqlca = sqlca()
         self.setDB2Version()
         mylog.info("trying to change SQLF_DBTN_LOGARCHMETH1")
         try:
@@ -127,7 +127,7 @@ class DB2Backup(Common_Class):
                 if rc != SQL_RC_OK:
                     mylog.error("db2CfgSet rc = '%d' sqlca %s " % (rc, sqlca))
                     self.get_sqlca_errormsg(sqlca)
-                    return
+                    return -1
                 else:
                     self.check_sqlca(sqlca, "Db Log Retain SQLF_DBTN_LOGARCHMETH1 = LOGRETAIN -- Enable")
             #self.ServerWorkingPathGet()
@@ -153,8 +153,8 @@ class DB2Backup(Common_Class):
         `libcli64.db2CfgGet`
         
         """
-        sqlca = struct_sqlca()
-        self.cfgParameters_ForLogPath = (struct_db2CfgParam * 1)()
+        sqlca = sqlca()
+        self.cfgParameters_ForLogPath = (db2CfgParam * 1)()
         cfgStruct = db2Cfg()
 
         self._setParameter(self.cfgParameters_ForLogPath[0], SQLF_DBTN_LOGPATH)
@@ -193,7 +193,7 @@ class DB2Backup(Common_Class):
         Parameters
         ----------
 
-        cfgParameter  : :class:`db2ApiDef.struct_db2CfgParam`
+        cfgParameter  : :class:`db2ApiDef.db2CfgParam`
         token         : :class:`ctypes.c_uint32`
         some_value    : :obj:`str`
 
@@ -224,7 +224,7 @@ class DB2Backup(Common_Class):
         `libcli64.db2Backup`
         """
         self.setDB2Version()
-        sqlca = struct_sqlca()
+        sqlca = sqlca()
 
         backupStruct     = db2BackupStruct()
         #tablespaceStruct = db2TablespaceStruct()
@@ -258,7 +258,7 @@ class DB2Backup(Common_Class):
         backupStruct.piDBAlias = cast(dbAlias, POINTER_T(c_char))
         #backupStruct.piTablespaceList = cast(byref(tablespaceStruct), POINTER_T(struct_db2TablespaceStruct))
 
-        backupStruct.piMediaList = cast(byref(mediaListStruct),  POINTER_T(struct_db2MediaListStruct))
+        backupStruct.piMediaList = cast(byref(mediaListStruct),  POINTER_T(db2MediaListStruct))
         backupStruct.piUsername  = cast(user, POINTER_T(c_char))
         backupStruct.piPassword  = cast(pswd, POINTER_T(c_char))
         #backupStruct.piVendorOptions = c_void_p(0)
@@ -271,9 +271,9 @@ class DB2Backup(Common_Class):
         backupStruct.iBufferSize = 32        #  32 x 4KB 
 
         if platform.system() == "Windows":
-            backupStruct.iNumBuffers = 5000 # All my windows pc has more than 16G RAM
+            backupStruct.iNumBuffers = 10000 # All my windows pc has more than 16G RAM
         else:
-            backupStruct.iNumBuffers = 200 # MAC DB2 only has 8G ram
+            backupStruct.iNumBuffers = 500 # MAC DB2 only has 8G ram
 
         backupStruct.iParallelism = 4
         #DB2BACKUP_ONLINE 
@@ -296,7 +296,7 @@ class DB2Backup(Common_Class):
         if rc != SQL_RC_OK:
             mylog.error("rc %d Database -- Backup '%s'" % (rc, sqlca))
             self.get_sqlca_errormsg(sqlca)
-            return
+            return -1
         else:
             if sqlca.sqlcode == SQLE_RC_DB_INUSE:
                 mylog.warn("SQLE_RC_DB_INUSE all conn to db has to be disconnected")
@@ -355,14 +355,22 @@ class DB2Backup(Common_Class):
         """
         Parameters
         ----------
-        backupStruct : class:`db2BackupStruct`
+        backupStruct : :class:`db2BackupStruct`
         """
-        mylog.info("backupStruct.piUsername   '%s' " % self.encode_utf8(cast(backupStruct.piUsername, c_char_p).value))
-        mylog.info("backupStruct.piPassword   '%s' " % self.encode_utf8(cast(backupStruct.piPassword, c_char_p).value))
-        mylog.info("backupStruct.piDBAlias    '%s' " % self.encode_utf8(cast(backupStruct.piDBAlias , c_char_p).value))
-        mylog.info("backupStruct.iParallelism '%d' " % backupStruct.iParallelism)
-        mylog.info("backupStruct.iBufferSize  '%d' " % backupStruct.iBufferSize)
-        mylog.info("backupStruct.iNumBuffers  '%d' " % backupStruct.iNumBuffers)
+        mylog.info("""
+backupStruct.piUsername   '%s' 
+backupStruct.piPassword   '%s' 
+backupStruct.piDBAlias    '%s' 
+backupStruct.iParallelism '%d' 
+backupStruct.iBufferSize  '%d' 
+backupStruct.iNumBuffers  '%d' 
+""" % (
+    self.encode_utf8(cast(backupStruct.piUsername, c_char_p).value),
+    self.encode_utf8(cast(backupStruct.piPassword, c_char_p).value),
+    self.encode_utf8(cast(backupStruct.piDBAlias , c_char_p).value),
+    backupStruct.iParallelism,
+    backupStruct.iBufferSize,
+    backupStruct.iNumBuffers))
 
     def DbBackupOffline(self, dbAlias, user, pswd):
         """ DbBackup
@@ -403,7 +411,7 @@ class DB2Backup(Common_Class):
         backupStruct.piDBAlias = cast(dbAlias, POINTER_T(c_char))
         #backupStruct.piTablespaceList = cast(byref(tablespaceStruct), POINTER_T(struct_db2TablespaceStruct))
 
-        backupStruct.piMediaList = cast(byref(mediaListStruct),  POINTER_T(struct_db2MediaListStruct))
+        backupStruct.piMediaList = cast(byref(mediaListStruct),  POINTER_T(db2MediaListStruct))
         backupStruct.piUsername  = cast(user, POINTER_T(c_char))
         backupStruct.piPassword  = cast(pswd, POINTER_T(c_char))
         #backupStruct.piVendorOptions = c_void_p(0)
@@ -484,16 +492,31 @@ class DB2Backup(Common_Class):
         return sqlca.sqlcode
 
     def log_backup_finished(self, backupStruct, backup_dir_destination):
-        mylog.info("  Backup finished.\n")
-        mylog.info("    - backup image size      : %d MB" % backupStruct.oBackupSize)
-        mylog.info("    - backup image path      : '%s'"  % self.encode_utf8(backup_dir_destination.value))
+        """
+        Parameters
+        ----------
+        backupStruct : :class:`db2BackupStruct`
+        c_char_p     : :class:`ctypes.c_char_p`
 
-        mylog.info("    - backup image time stamp: '%s'"  % self.encode_utf8(backupStruct.oTimestamp))
-        mylog.info("    - piComprLibrary         : '%s'"  % self.encode_utf8(cast(backupStruct.piComprLibrary, c_char_p).value))
-        mylog.info("    - iNumMPPOutputStructs   : '%s'"  % backupStruct.iNumMPPOutputStructs)
-        mylog.info("    - poMPPOutputStruct      : '%s'"  % backupStruct.poMPPOutputStruct)
-        mylog.info("    - oApplicationId         : '%s'"  % self.encode_utf8(cast(backupStruct.oApplicationId, c_char_p).value))
+        """
+        mylog.info("""
+Backup finished.
+    - backup image size      : %d MB
+    - backup image path      : '%s'
 
+    - backup image time stamp: '%s'
+    - piComprLibrary         : '%s'
+    - iNumMPPOutputStructs   : '%s'
+    - poMPPOutputStruct      : '%s'
+    - oApplicationId         : '%s'
+""" % (backupStruct.oBackupSize,
+       self.encode_utf8(backup_dir_destination.value),
+       self.encode_utf8(backupStruct.oTimestamp),
+       self.encode_utf8(cast(backupStruct.piComprLibrary, c_char_p).value),
+       backupStruct.iNumMPPOutputStructs,
+       backupStruct.poMPPOutputStruct,
+       self.encode_utf8(cast(backupStruct.oApplicationId, c_char_p).value)
+       ))
 
     def DeactivateAndBackup_OFFLINE(self):
         """To do an OFFLINE backup of the database all the users has to be disconnected
@@ -502,7 +525,7 @@ class DB2Backup(Common_Class):
         `libcli64.sqle_activate_db_api`
         `libcli64.sqlefrce_api`
         """
-        sqlca = struct_sqlca()
+        sqlca = sqlca()
         try:
             rc = self.mDb2_Cli.libcli64.sqlefrce_api(SQL_ALL_USERS, Nullpointer, SQL_ASYNCH, byref(sqlca))
             if rc != SQL_RC_OK:
@@ -557,10 +580,10 @@ class DB2Backup(Common_Class):
                 mylog.error("DbBackupOffline")
 
             rc = self.sqle_activate_db_api (self.mDb2_Cli.dbAlias,
-                                                                  self.mDb2_Cli.user,
-                                                                  self.mDb2_Cli.pswd,
-                                                                  Nullpointer,
-                                                                  byref(sqlca))
+                                            self.mDb2_Cli.user,
+                                            self.mDb2_Cli.pswd,
+                                            Nullpointer,
+                                            byref(sqlca))
             if rc != SQL_RC_OK:
                 mylog.error("sqle_activate_db_api %d " % rc)
                 self.get_sqlca_errormsg(sqlca)

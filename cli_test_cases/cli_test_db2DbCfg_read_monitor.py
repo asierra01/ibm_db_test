@@ -13,8 +13,8 @@ import sys
 
 from . import Common_Class
 from . import (db2Cfg,
-               struct_sqlca,
-               struct_db2CfgParam,
+               sqlca,
+               db2CfgParam,
                db2CfgDatabase,
                db2CfgDelayed)
 
@@ -53,7 +53,7 @@ class GetSetDBCfg_Monitor(Common_Class):
 
     Attributes
     ----------
-    cfgParameters : :class:`db2ApiDef.struct_db2CfgParam`
+    cfgParameters : :class:`db2ApiDef.db2CfgParam`
     """
 
     def __init__(self, mDb2_Cli):
@@ -78,7 +78,7 @@ class GetSetDBCfg_Monitor(Common_Class):
 
         mylog.info("CLI functions db2CfgGet, db2CfgSet")
 
-        self.cfgParameters = (struct_db2CfgParam * 12)()
+        self.cfgParameters = (db2CfgParam * 12)()
 
         self.autonomic_switch     = c_int(0)
         self.auto_prof_upd        = c_int(0)
@@ -107,43 +107,46 @@ class GetSetDBCfg_Monitor(Common_Class):
         cfgStruct.paramArray = self.cfgParameters  # cast(struct_db2CfgParam,POINTER_T(cfgParameters))
         cfgStruct.flags = db2CfgDatabase | db2CfgDelayed
         cfgStruct.dbName = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         self.setDB2Version()
 
         try:
             rc = self.InstanceAttach()
 
-            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(sqlca))
+            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(_sqlca))
+
             if rc != SQL_RC_OK:
-                mylog.error("db2CfgGet rc = '%d' sqlca %s" % (rc, sqlca))
-                self.get_sqlca_errormsg(sqlca)
-            elif sqlca.sqlcode != SQL_RC_OK: 
-                mylog.error("db2CfgGet sqlca = %s " % sqlca)
-                self.get_sqlca_errormsg(sqlca)
+                mylog.error("db2CfgGet rc = '%d' sqlca %s" % (rc, _sqlca))
+                self.get_sqlca_errormsg(_sqlca)
+            elif _sqlca.sqlcode != SQL_RC_OK: 
+                mylog.error("db2CfgGet sqlca = %s " % _sqlca)
+                self.get_sqlca_errormsg(_sqlca)
 
             table = Texttable()
             table.set_deco(Texttable.HEADER)
-            table.set_cols_dtype(['t', 't'])
-            table.set_cols_align(['l', 'l'])
-            table.set_header_align(['l', 'l'])
-            table.header(["db cfg token", " value"])
-            table.set_cols_width([55, 20])
+            table.set_cols_dtype(['t', 't' , 't'])
+            table.set_cols_align(['l', 'l', 'l'])
+            table.set_header_align(['l', 'l', 'l'])
+            table.header(["db cfg token", " value", "flag"])
+            table.set_cols_width([55, 20, 25])
 
-            table.add_row(["SQLF_DBTN_AUTONOMIC_SWITCHES autonomic_switch",     "{0:b}".format(self.autonomic_switch.value)])
-            table.add_row(["SQLF_DBTN_AUTO_PROF_UPD      auto_prof_upd",        self.auto_prof_upd.value])
-            table.add_row(["SQLF_DBTN_AUTO_MAINT         auto_maint",           self.auto_maint.value])
-            table.add_row(["SQLF_DBTN_AUTO_RUNSTATS      auto_run_stats",       self.auto_run_stats.value])
-            table.add_row(["SQLF_DBTN_AUTO_REORG         auto_reorg",           self.auto_reorg.value])
-            table.add_row(["SQLF_DBTN_AUTO_STMT_STATS    auto_stmt_stats",      self.auto_stmt_stats.value])
-            table.add_row(["SQLF_DBTN_AUTO_TBL_MAINT     auto_tabl_maint",      self.auto_tabl_maint.value])
-            table.add_row(["SQLF_DBTN_AUTO_DB_BACKUP     auto_db_backup",       self.auto_db_backup.value])
-            table.add_row(["SQLF_DBTN_AUTO_STATS_PROF    auto_stats_profiling", self.auto_stats_profiling.value])
-            table.add_row(["SQLF_DBTN_AUTO_STATS_VIEWS   auto_stats_view",      self.auto_stats_views.value])
+            table.add_row(["SQLF_DBTN_AUTONOMIC_SWITCHES autonomic_switch",     "{0:b}".format(self.autonomic_switch.value), self.cfgParameters[0].flags])
+            table.add_row(["SQLF_DBTN_AUTO_PROF_UPD      auto_prof_upd",        self.auto_prof_upd.value, self.cfgParameters[1].flags])
+            table.add_row(["SQLF_DBTN_AUTO_MAINT         auto_maint",           self.auto_maint.value, self.cfgParameters[2].flags])
+            table.add_row(["SQLF_DBTN_AUTO_RUNSTATS      auto_run_stats",       self.auto_run_stats.value, self.cfgParameters[3].flags])
+            table.add_row(["SQLF_DBTN_AUTO_REORG         auto_reorg",           self.auto_reorg.value, self.cfgParameters[4].flags])
+            table.add_row(["SQLF_DBTN_AUTO_STMT_STATS    auto_stmt_stats",      self.auto_stmt_stats.value, self.cfgParameters[5].flags])
+            table.add_row(["SQLF_DBTN_AUTO_TBL_MAINT     auto_tabl_maint",      self.auto_tabl_maint.value, self.cfgParameters[6].flags])
+            table.add_row(["SQLF_DBTN_AUTO_DB_BACKUP     auto_db_backup",       self.auto_db_backup.value, self.cfgParameters[7].flags])
+            table.add_row(["SQLF_DBTN_AUTO_STATS_PROF    auto_stats_profiling", self.auto_stats_profiling.value, self.cfgParameters[8].flags])
+            table.add_row(["SQLF_DBTN_AUTO_STATS_VIEWS   auto_stats_view",      self.auto_stats_views.value, self.cfgParameters[9].flags])
 
             mylog.info("\n%s\n" % table.draw())
             rc = self.InstanceDetach()
         except AttributeError as e:
             mylog.error("AttributeError %s" % e)
+            return -1
 
         mylog.info("done")
+        return 0
 

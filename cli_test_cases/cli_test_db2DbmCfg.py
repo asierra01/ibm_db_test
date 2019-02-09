@@ -12,8 +12,8 @@ import platform
 
 from . import (Common_Class,
                db2Cfg,
-               struct_sqlca,
-               struct_db2CfgParam,
+               sqlca,
+               db2CfgParam,
                db2CfgDelayed,
                db2CfgDatabaseManager)
 
@@ -62,25 +62,42 @@ class GetSetDBMCfg(Common_Class):
     SQLF_KTN_INSTANCE_MEMORY
     SQLF_KTN_DFT_MONSWITCHES
 
-    :mod:`db2ApiDef.db2CfgDatabaseManager`
-    :mod:`db2ApiDef.db2CfgDelayed`
+    :class:`db2ApiDef.db2CfgDatabaseManager`
+    :class:`db2ApiDef.db2CfgDelayed`
 
     Attributes
     ----------
 
-    cfgParameters : :class:`db2ApiDef.struct_db2CfgParam`
-    sqlca         : :class:`db2ApiDef.struct_sqlca`
+    cfgParameters : :class:`db2ApiDef.db2CfgParam`
+    sqlca         : :class:`db2ApiDef.sqlca`
     cfgStruct     : :class:`db2ApiDef.db2Cfg`
      
     """
 
     def __init__(self, mDb2_Cli):
         super(GetSetDBMCfg, self).__init__(mDb2_Cli)
+        self.instance_memory     = c_int(0)
+        self.instra_parallel     = c_int(0)
+        self.fcm_buffer_size     = c_int(0)
+        self.fcm_num_buffers     = c_int(0)
+        self.fcm_num_channels    = c_int(0)
+        self.fcm_num_parallelism = c_int(0)
+        self.diagsize            = c_int(0)
+        self.jvm_init_fenced     = c_int(0)
+        #
+        self.monitor_switch       = c_int(0)
+        self.monitor_unit_of_work = c_int(0)
+        self.monitor_statement    = c_int(0)
+        self.monitor_table        = c_int(0)
+        self.monitor_bufferpool   = c_int(0)
+        self.monitor_lock         = c_int(0)
+        self.moniotor_sort        = c_int(0)
+        self.monitor_timestamp    = c_int(0)
 
     def setMonitorSwitches(self):
         mylog.info("CLI functions db2CfgSet")
         ret = 0
-        self.cfgParameters = (struct_db2CfgParam * 12)()
+        self.cfgParameters = (db2CfgParam * 12)()
 
         self.monitor_switch       = c_int(0B0001111111)
 
@@ -88,10 +105,10 @@ class GetSetDBMCfg(Common_Class):
 
         cfgStruct = db2Cfg()
         cfgStruct.numItems = 1
-        cfgStruct.paramArray = self.cfgParameters  # cast(struct_db2CfgParam,POINTER_T(cfgParameters))
+        cfgStruct.paramArray = self.cfgParameters
         cfgStruct.flags = db2CfgDatabaseManager | db2CfgDelayed
         cfgStruct.dbName = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         self.setDB2Version()
 
         try:
@@ -102,25 +119,25 @@ class GetSetDBMCfg(Common_Class):
 
             rc = self.mDb2_Cli.libcli64.db2CfgSet(self.db2Version, 
                                                   byref(cfgStruct), 
-                                                  byref(sqlca))
+                                                  byref(_sqlca))
             if rc != SQL_RC_OK:
                 mylog.error("db2CfgSet rc = %d sqlca %s \nsqlca.sqlcode %s" % (
                                 rc,
-                                sqlca,
-                                self.getsqlcode(sqlca.sqlcode)))
+                                _sqlca,
+                                self.getsqlcode(_sqlca.sqlcode)))
                 ret = -2
             else:
-                if sqlca.sqlcode == SQLF_RC_INVTKN_PTR:
+                if _sqlca.sqlcode == SQLF_RC_INVTKN_PTR:
                     mylog.error("invalid token ptr value SQLF_RC_INVTKN_PTR")
                     ret = -4
-                elif sqlca.sqlcode != SQL_RC_OK:
+                elif _sqlca.sqlcode != SQL_RC_OK:
                     ret = -5
                     mylog.error("db2CfgSet rc = %d sqlca %s \nsqlca.sqlcode %s" % (
                                 rc,
-                                sqlca,
-                                self.getsqlcode(sqlca.sqlcode)))
+                                _sqlca,
+                                self.getsqlcode(_sqlca.sqlcode)))
 
-                elif sqlca.sqlcode == SQL_RC_OK:
+                elif _sqlca.sqlcode == SQL_RC_OK:
                     ret = 0# we are good
 
 
@@ -151,17 +168,7 @@ class GetSetDBMCfg(Common_Class):
         """
         mylog.info("CLI functions db2CfgGet, db2CfgSet")
 
-        self.cfgParameters = (struct_db2CfgParam * 12)()
-
-        self.monitor_switch       = c_int(0)
-        self.monitor_unit_of_work = c_int(0)
-        self.monitor_statement    = c_int(0)
-        self.monitor_table        = c_int(0)
-        self.monitor_bufferpool   = c_int(0)
-        self.monitor_lock         = c_int(0)
-        self.moniotor_sort        = c_int(0)
-        self.monitor_timestamp    = c_int(0)
-
+        self.cfgParameters = (db2CfgParam * 12)()
 
         self.setParameterInt(0, SQLF_KTN_DFT_MONSWITCHES,   self.monitor_switch)
         self.setParameterInt(1, SQLF_KTN_DFT_MON_UOW,       self.monitor_unit_of_work)
@@ -174,10 +181,10 @@ class GetSetDBMCfg(Common_Class):
 
         cfgStruct = db2Cfg()
         cfgStruct.numItems = 8
-        cfgStruct.paramArray = self.cfgParameters  # cast(struct_db2CfgParam,POINTER_T(cfgParameters))
+        cfgStruct.paramArray = self.cfgParameters
         cfgStruct.flags = db2CfgDatabaseManager | db2CfgDelayed
         cfgStruct.dbName = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         self.setDB2Version()
 
         try:
@@ -186,34 +193,35 @@ class GetSetDBMCfg(Common_Class):
                 mylog.error("InstanceAttach rc = %d " % rc)
                 return -1
     
-            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(sqlca))
+            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(_sqlca))
             if rc != SQL_RC_OK:
-                mylog.error("db2CfgGet rc = %d sqlca %s " % (rc,sqlca))
+                mylog.error("db2CfgGet rc = %d sqlca %s " % (rc, _sqlca))
             else:
-                if sqlca.sqlcode != SQL_RC_OK:
+                if _sqlca.sqlcode != SQL_RC_OK:
                     mylog.error("db2CfgGet rc = %d sqlca %s \nsqlca.sqlcode %s" % (
                         rc,
                         sqlca,
-                        self.getsqlcode(sqlca.sqlcode)))
-                if sqlca.sqlcode == SQLF_RC_INVTKN_PTR:
+                        self.getsqlcode(_sqlca.sqlcode)))
+
+                if _sqlca.sqlcode == SQLF_RC_INVTKN_PTR:
                     mylog.error("invalid token ptr value ")
 
             table = Texttable()
             table.set_deco(Texttable.HEADER)
-            table.set_cols_dtype(['t','t'])
-            table.set_header_align(['l', 'l'])
-            table.set_cols_align(['l', 'l'])
-            table.header(["db cfg token", " binary value"])
-            table.set_cols_width([50, 20])
+            table.set_cols_dtype(['t','t', 't'])
+            table.set_header_align(['l', 'l', 'l'])
+            table.set_cols_align(['l', 'l', 'l'])
+            table.header(["db cfg token", " binary value", "flag"])
+            table.set_cols_width([50, 20, 30])
 
-            table.add_row(["SQLF_KTN_DFT_MONSWITCHES   monitor_switch",      "{0:b}".format(self.monitor_switch.value)])
-            table.add_row(["SQLF_KTN_DFT_MON_UOW       monitor_unit_of_work",self.monitor_unit_of_work.value])
-            table.add_row(["SQLF_KTN_DFT_MON_STMT      monitor_statement",   self.monitor_statement.value])
-            table.add_row(["SQLF_KTN_DFT_MON_TABLE     monitor_table",       self.monitor_table.value])
-            table.add_row(["SQLF_KTN_DFT_MON_BUFPOOL   monitor_bufferpool",  self.monitor_bufferpool.value])
-            table.add_row(["SQLF_KTN_DFT_MON_LOCK      monitor_lock",        self.monitor_lock.value])
-            table.add_row(["SQLF_KTN_DFT_MON_SORT      moniotor_sort",       self.moniotor_sort.value])
-            table.add_row(["SQLF_KTN_DFT_MON_TIMESTAMP monitor_timestamp",   self.monitor_timestamp.value])
+            table.add_row(["SQLF_KTN_DFT_MONSWITCHES   monitor_switch",      "{0:b}".format(self.monitor_switch.value), self.cfgParameters[0].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_UOW       monitor_unit_of_work",self.monitor_unit_of_work.value, self.cfgParameters[1].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_STMT      monitor_statement",   self.monitor_statement.value, self.cfgParameters[2].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_TABLE     monitor_table",       self.monitor_table.value, self.cfgParameters[3].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_BUFPOOL   monitor_bufferpool",  self.monitor_bufferpool.value, self.cfgParameters[4].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_LOCK      monitor_lock",        self.monitor_lock.value, self.cfgParameters[5].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_SORT      moniotor_sort",       self.moniotor_sort.value, self.cfgParameters[6].flags])
+            table.add_row(["SQLF_KTN_DFT_MON_TIMESTAMP monitor_timestamp",   self.monitor_timestamp.value, self.cfgParameters[7].flags])
 
             mylog.info("\n\n%s\n\n" % table.draw())
             rc = self.InstanceDetach()
@@ -240,13 +248,12 @@ class GetSetDBMCfg(Common_Class):
         str_value = self.encode_utf8(str_value)
         ret_str = "'%s'" % str_value
         return ret_str
-        #return "'%s'" % cast (self.cfgParameters[parm].ptrvalue , c_char_p).value
 
     def setdbmcfg(self):
         """change SQLF_KTN_DIAGSIZE to 10 MB
         """
         mylog.info("CLI functions db2CfgSet")
-        self.cfgParameters = (struct_db2CfgParam * 12)()
+        self.cfgParameters = (db2CfgParam * 12)()
 
         self.diagsize       = c_int(10)
 
@@ -257,7 +264,7 @@ class GetSetDBMCfg(Common_Class):
         cfgStruct.paramArray = self.cfgParameters
         cfgStruct.flags = db2CfgDatabaseManager | db2CfgDelayed
         cfgStruct.dbName = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         self.setDB2Version()
 
         try:
@@ -266,20 +273,20 @@ class GetSetDBMCfg(Common_Class):
                 mylog.error("InstanceAttach rc = %d " % rc)
                 return -1
 
-            rc = self.mDb2_Cli.libcli64.db2CfgSet(self.db2Version, byref(cfgStruct), byref(sqlca))
+            rc = self.mDb2_Cli.libcli64.db2CfgSet(self.db2Version, byref(cfgStruct), byref(_sqlca))
             if rc != SQL_RC_OK:
-                mylog.error("db2CfgSet rc = %d sqlca %s " % (rc, sqlca))
-                self.get_sqlca_errormsg(sqlca)
+                mylog.error("db2CfgSet rc = %d sqlca %s " % (rc, _sqlca))
+                self.get_sqlca_errormsg(_sqlca)
 
             else:
-                if sqlca.sqlcode != SQL_RC_OK: 
+                if _sqlca.sqlcode != SQL_RC_OK: 
                     mylog.error("db2CfgSet rc = %d sqlca %s \nsqlca.sqlcode %s" % (
                             rc,
-                            sqlca,
-                            self.getsqlcode(sqlca.sqlcode)))
-                    self.get_sqlca_errormsg(sqlca)
+                            _sqlca,
+                            self.getsqlcode(_sqlca.sqlcode)))
+                    self.get_sqlca_errormsg(_sqlca)
 
-                if sqlca.sqlcode == SQLF_RC_INVTKN_PTR:
+                if _sqlca.sqlcode == SQLF_RC_INVTKN_PTR:
                     mylog.error("invalid token ptr value ")
 
             rc = self.InstanceDetach()
@@ -298,19 +305,31 @@ class GetSetDBMCfg(Common_Class):
     def getdbmcfg(self): 
         """get DBM cfg parameters
         """
+        def add_row(row_list):
+            """
+            Parameters
+            ----------
+            row_list : :obj:list
+
+            """
+            if row_list[2] == 1:
+                row_list[2] = "1=db2CfgParamAutomatic"
+            elif row_list[2] == 2:
+                row_list[2] = "2=db2CfgParamComputed"
+            elif row_list[2] == 16:
+                row_list[2] = "16=db2CfgParamManual"
+
+            if isinstance(row_list[1], str):
+                if len(row_list[1]) > self.max_value_len:
+                    self.max_value_len = len(row_list[1])
+
+            table.add_row(row_list)
+
         mylog.info("CLI functions db2CfgGet, db2CfgSet on db2CfgDatabaseManager")
 
-        self.cfgParameters = (struct_db2CfgParam * 18)() # cli_test.db2CfgGet.struct_db2CfgParam_Array_2 
+        self.cfgParameters = (db2CfgParam * 18)() # cli_test.db2CfgGet.struct_db2CfgParam_Array_2 
         self.setParameter(self.cfgParameters[0], SQLF_KTN_CF_DIAGPATH)
 
-        self.instance_memory = c_int(0)
-        self.instra_parallel = c_int(0)
-        self.fcm_buffer_size = c_int(0)
-        self.fcm_num_buffers = c_int(0)
-        self.fcm_num_channels= c_int(0)
-        self.fcm_num_parallelism=c_int(0)
-        self.diagsize           =c_int(0)
-        self.jvm_init_fenced    =c_int(0)
         self.setParameterInt(1, SQLF_KTN_INSTANCE_MEMORY, self.instance_memory, db2CfgParamAutomatic)
 
         self.setParameter(self.cfgParameters[2], SQLF_KTN_JDK_PATH)
@@ -320,8 +339,8 @@ class GetSetDBMCfg(Common_Class):
         self.setParameter(self.cfgParameters[5], SQLF_KTN_CLNT_PW_PLUGIN)
         self.setParameter(self.cfgParameters[6], SQLF_KTN_GROUP_PLUGIN)
         self.setParameter(self.cfgParameters[7], SQLF_KTN_SRVCON_PW_PLUGIN)
-        self.setParameterInt(8, SQLF_KTN_INTRA_PARALLEL, self.instra_parallel, db2CfgParamAutomatic)
-        self.setParameterInt(9, SQLF_KTN_DIAGSIZE, self.diagsize)
+        self.setParameterInt(8,  SQLF_KTN_INTRA_PARALLEL, self.instra_parallel, db2CfgParamAutomatic)
+        self.setParameterInt(9,  SQLF_KTN_DIAGSIZE, self.diagsize)
         self.setParameterInt(10, SQLF_KTN_FCM_NUM_CHANNELS, self.fcm_num_channels)
         self.setParameterInt(11, SQLF_KTN_FCM_NUM_BUFFERS, self.fcm_num_buffers)
         self.setParameterInt(12, SQLF_KTN_FCM_PARALLELISM, self.fcm_num_parallelism)
@@ -337,7 +356,7 @@ class GetSetDBMCfg(Common_Class):
         cfgStruct.paramArray = self.cfgParameters
         cfgStruct.flags      = db2CfgDatabaseManager | db2CfgDelayed
         cfgStruct.dbName     = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         self.setDB2Version()
 
         try:
@@ -346,39 +365,41 @@ class GetSetDBMCfg(Common_Class):
                 mylog.error("InstanceAttach rc = %d " % rc)
                 return -1
 
-            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(sqlca))
+            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(_sqlca))
 
             if rc != SQL_RC_OK:
-                mylog.error("db2CfgSet rc = %d sqlca %s " % (rc, sqlca))
+                mylog.error("db2CfgSet rc = %d sqlca %s " % (rc, _sqlca))
 
-            if sqlca.sqlcode != SQL_RC_OK:
-                mylog.error("db2CfgSet sqlca.sqlcode %d != SQL_RC_OK sqlca %s " % (sqlca.sqlcode, sqlca))
-                self.get_sqlca_errormsg(sqlca)
+            if _sqlca.sqlcode != SQL_RC_OK:
+                mylog.error("db2CfgSet sqlca.sqlcode %d != SQL_RC_OK sqlca %s " % (_sqlca.sqlcode, _sqlca))
+                self.get_sqlca_errormsg(_sqlca)
 
             table = Texttable()
             table.set_deco(Texttable.HEADER)
-            table.set_cols_dtype(['t', 't'])  
-            table.set_cols_align(['l', 'l'])
-            table.set_header_align(['l', 'l'])
-            table.header(["dbm cfg token", " value" ])
-            table.set_cols_width([35, 65])
+            table.set_cols_dtype(['t', 't', 't'])
+            table.set_cols_align(['l', 'l', 'l'])
+            table.set_header_align(['l', 'l', 'l'])
+            table.header(["dbm cfg token", " value", "flag" ])
+            table.set_cols_width([35, 65, 25])
+            self.max_value_len = 0
 
-            table.add_row( ["SQLF_KTN_CF_DIAGPATH",       self.get_param(0)])
-            table.add_row( ["SQLF_KTN_INSTANCE_MEMORY",   self.mDb2_Cli.human_format(self.instance_memory.value*4*1024 ) ])
-            table.add_row( ["SQLF_KTN_JDK_PATH",          self.get_param(2)])
-            table.add_row( ["SQLF_KTN_DFTDBPATH",         self.get_param(3)])
-            table.add_row( ["SQLF_KTN_SVCENAME",          self.get_param(4)])
-            table.add_row( ["SQLF_KTN_CLNT_PW_PLUGIN",    self.get_param(5)])
-            table.add_row( ["SQLF_KTN_GROUP_PLUGIN",      self.get_param(6)])
-            table.add_row( ["SQLF_KTN_SRVCON_PW_PLUGIN",  self.get_param(7)])
-            table.add_row( ["SQLF_KTN_DIAGSIZE",          self.diagsize.value])
-            table.add_row( ["SQLF_KTN_INTRA_PARALLEL",    self.instra_parallel.value])
-            table.add_row( ["SQLF_KTN_FCM_BUFFERSIZE",    self.fcm_buffer_size.value])
-            table.add_row( ["SQLF_KTN_FCM_NUM_BUFFERS",   self.fcm_num_buffers.value])
-            table.add_row( ["SQLF_KTN_FCM_NUM_CHANNELS",  self.fcm_num_channels.value])
-            table.add_row( ["SQLF_KTN_FCM_PARALLELISM",   "1 is True '%d'" % self.fcm_num_parallelism.value])
-            table.add_row( ["SQLF_KTN_INITFENCED_JVM",    self.jvm_init_fenced.value])
+            add_row( ["SQLF_KTN_CF_DIAGPATH",       self.get_param(0), self.cfgParameters[0].flags])
+            add_row( ["SQLF_KTN_INSTANCE_MEMORY",   self.mDb2_Cli.human_format(self.instance_memory.value*4*1024 ), self.cfgParameters[1].flags ])
+            add_row( ["SQLF_KTN_JDK_PATH",          self.get_param(2), self.cfgParameters[2].flags])
+            add_row( ["SQLF_KTN_DFTDBPATH",         self.get_param(3), self.cfgParameters[3].flags])
+            add_row( ["SQLF_KTN_SVCENAME",          self.get_param(4), self.cfgParameters[4].flags])
+            add_row( ["SQLF_KTN_CLNT_PW_PLUGIN",    self.get_param(5), self.cfgParameters[5].flags])
+            add_row( ["SQLF_KTN_GROUP_PLUGIN",      self.get_param(6), self.cfgParameters[6].flags])
+            add_row( ["SQLF_KTN_SRVCON_PW_PLUGIN",  self.get_param(7), self.cfgParameters[7].flags])
+            add_row( ["SQLF_KTN_DIAGSIZE",          self.diagsize.value, self.cfgParameters[8].flags])
+            add_row( ["SQLF_KTN_INTRA_PARALLEL",    self.instra_parallel.value, self.cfgParameters[9].flags])
+            add_row( ["SQLF_KTN_FCM_BUFFERSIZE",    self.fcm_buffer_size.value, self.cfgParameters[10].flags])
+            add_row( ["SQLF_KTN_FCM_NUM_BUFFERS",   self.fcm_num_buffers.value, self.cfgParameters[11].flags])
+            add_row( ["SQLF_KTN_FCM_NUM_CHANNELS",  self.fcm_num_channels.value, self.cfgParameters[12].flags])
+            add_row( ["SQLF_KTN_FCM_PARALLELISM",   "1 is True '%d'" % self.fcm_num_parallelism.value, self.cfgParameters[13].flags])
+            add_row( ["SQLF_KTN_INITFENCED_JVM",    self.jvm_init_fenced.value, self.cfgParameters[14].flags])
 
+            table._width[1] = self.max_value_len
             mylog.info("\n\n%s\n\n" % table.draw())
 
             rc = self.InstanceDetach()

@@ -80,12 +80,12 @@ class DBnames(Common_Class):
         def SQLGetInf(param, dbInfoBuf1=None):
 
             self.outlen.value = 0
-            mylog.debug("Buffer Size %d"% sizeof(self.dbInfoBuf))
+            mylog.debug("Buffer Size %d" % sizeof(self.dbInfoBuf))
             if dbInfoBuf1 is not None:
                 self.dbInfoBuf = dbInfoBuf1
             else:
                 self.dbInfoBuf = create_string_buffer(4024)
-            mylog.info("Buffer Size %d"% sizeof(self.dbInfoBuf))
+            mylog.debug("Buffer Size %d" % sizeof(self.dbInfoBuf))
             memset(self.dbInfoBuf, 0, sizeof(self.dbInfoBuf))
 
             clirc = self.mDb2_Cli.libcli64.SQLGetInfo(self.mDb2_Cli.hdbc,

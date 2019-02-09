@@ -7,7 +7,7 @@ import platform
 
 from .cli_test_db2ApiDef import (POINTER_T)
 from . import db2_clu_constants
-from .cli_test_db2ApiDef import (struct_sqlca)
+from .cli_test_db2ApiDef import (sqlca)
 from utils.logconfig import mylog
 from sqlcodes import SQL_RC_OK
 from .db2_cli_constants import (SQL_NTS, SQL_HANDLE_STMT, SQL_HANDLE_DBC, SQL_COMMIT)
@@ -17,6 +17,11 @@ __docformat__ = 'reStructuredText en'
 
 class Common_Class(object):
     """common class to facilitate to all cli_test classes helper functions
+
+    Attributes
+    ----------
+    mDb2_Cli    : :class:`cli_object.Db2_Cli`
+    hstmt       : :class:`ctypes.c_void_p`
     """
 
     def __init__(self, mDb2_Cli):
@@ -31,17 +36,18 @@ class Common_Class(object):
         index         : :obj:`int`
         token         : :class:`ctypes.c_uint32`
         in_int        : :class:`ctypes.c_int`
+        flags         : :obj:`int`
 
         """
         self.setParameter_int(self.cfgParameters[index], token, in_int, flags)
 
     def setParameter(self, cfgParameter, token, flags=0):
-        """helper function to fill an string parameter parameter
+        """helper function to fill an string parameter
 
         Parameters
         ----------
 
-        cfgParameter  : :class:`db2ApiDef.struct_db2CfgParam`
+        cfgParameter  : :class:`db2ApiDef.db2CfgParam`
         token         : :class:`ctypes.c_uint32`
         flags         :  0 or db2CfgParamAutomatic or db2CfgParamComputed or db2CfgParamManual
         """
@@ -84,17 +90,17 @@ class Common_Class(object):
 
     def InstanceAttach(self):
         """helper function to attach db2 instance"""
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         rc = self.mDb2_Cli.libcli64.sqleatin_api(self.mDb2_Cli.nodeName,
                                                  self.mDb2_Cli.user,
                                                  self.mDb2_Cli.pswd,
-                                                 byref(sqlca))
+                                                 byref(_sqlca))
         if rc != SQL_RC_OK:
-            mylog.error("InstanceAttach %s" % sqlca)
+            mylog.error("InstanceAttach %s" % _sqlca)
             self.get_sqlca_errormsg(sqlca)
 
-        elif (sqlca.sqlcode != SQL_RC_OK):
-            mylog.error("InstanceAttach '%s'" % sqlca)
+        elif _sqlca.sqlcode != SQL_RC_OK:
+            mylog.error("InstanceAttach '%s'" % _sqlca)
             self.get_sqlca_errormsg(sqlca)
 
         else:
@@ -103,41 +109,56 @@ class Common_Class(object):
         return rc
 
     def get_sqlstate_message(self, SQLSTATE):
+        """helper function to get a string error text from SQLSTATE number
+        uses sqlogstt : Retrieves the message text associated with an SQLSTATE. 
+        """
         # get SQLSTATE message
         psqlstateMsg    = create_string_buffer(1024+1)
         rc = self.mDb2_Cli.libcli64.sqlogstt(byref(psqlstateMsg), 1024, 80, SQLSTATE)
         if (rc > 0):
             mylog.error("SQLSTATE errorMsg : '%s'" % psqlstateMsg.value)
+        else:
+            mylog.warn("collecting SQLSTATE errorMsg returned an error rc = %d" % rc)
 
-    def get_sqlca_errormsg(self, sqlca):
-        """
+    def get_sqlca_errormsg(self, _sqlca):
+        """helper function to get error message from sqlca
+        uses sqlaintp : Retrieves the message associated with an error condition 
+        specified by the sqlcode field of the sqlca structure. 
+
         Parameters
         ----------
-        sqlca         : :class:`db2ApiDef.struct_sqlca`
+        _sqlca         : :class:`db2ApiDef.sqlca`
         """
         # get error message
         perrorMsg    = c_char_p(self.encode_utf8(" ") * 1025)
         pMsgFileName = c_char_p(self.encode_utf8("db2sql.mo"))
 
-        rc = self.mDb2_Cli.libcli64.sqlaintp_api(perrorMsg, 1024, 80, pMsgFileName, byref(sqlca))
-        if (rc > 0):
-            if sqlca.sqlstate != '     ':
-                mylog.error("\nerrorMsg : '%s'\nsqlca.sqlstate '%s'" % (self.encode_utf8(perrorMsg.value),
-                                                                      self.encode_utf8(sqlca.sqlstate)))
+        rc = self.mDb2_Cli.libcli64.sqlaintp_api(perrorMsg, 1024, 80, pMsgFileName, byref(_sqlca))
+        if rc > 0:
+            if _sqlca.sqlstate != '     ':
+                mylog.error("""
+errorMsg       : '%s'
+sqlca.sqlstate : '%s'
+""" % (
+                    self.encode_utf8(perrorMsg.value),
+                    self.encode_utf8(_sqlca.sqlstate)))
             else:
                 mylog.error("\nerrorMsg : '%s'" % self.encode_utf8(perrorMsg.value))
 
-        self.get_sqlstate_message(sqlca.sqlstate)
+        self.get_sqlstate_message(_sqlca.sqlstate)
 
     def InstanceDetach(self):
-        """helper function to detach db2 instance"""
-        sqlca = struct_sqlca()
-        rc = self.mDb2_Cli.libcli64.sqledtin_api(byref(sqlca))
+        """helper function to detach db2 instance
+        uses sqledtin : Removes the logical instance attachment, and terminates the physical communication 
+        connection if there are no other logical connections using this layer.
+        """
+        _sqlca = sqlca()
+        rc = self.mDb2_Cli.libcli64.sqledtin_api(byref(_sqlca))
         if rc != SQL_RC_OK:
-            mylog.error("InstanceDetach '%s'" % sqlca)
+            mylog.error("InstanceDetach '%s'" % _sqlca)
             self.get_sqlca_errormsg(sqlca)
         else:
-            mylog.debug("Detach SQL_RC_OK")
+            mylog.info("Detach SQL_RC_OK")
 
         return rc
 
@@ -147,7 +168,7 @@ class Common_Class(object):
         Parameters
         ----------
 
-        cfgParameters : :class:`db2ApiDef.struct_db2CfgParam`
+        cfgParameters : :class:`db2ApiDef.db2CfgParam`
         token         : :class:`ctypes.c_uint32`
         in_int        : :class:`ctypes.c_int`
 
@@ -155,6 +176,9 @@ class Common_Class(object):
         cfgParameter.flags = flags
         cfgParameter.ptrvalue = cast(addressof(in_int), POINTER_T(c_char))
         cfgParameter.token = token
+
+    def getDB2_USER(self):
+        return self.mDb2_Cli.my_dict['DB2_USER'].upper()
 
     def setDB2Version(self):
         """set DB2 Version on some structures parameters, to tell DB2 
@@ -169,22 +193,19 @@ class Common_Class(object):
         self.SQL_REL10100   = 10010000 
         self.db2Version = self.SQL_REL10100
         mylog.info("I am hardcoding the db2 version as SQL_REL10100")
-        #else:
-        #    self.SQL_REL11010202 = 11010202
-        #    self.db2Version = self.SQL_REL11010202    
 
     def check_sqlca(self, sqlca, func_name):
         if sqlca.sqlcode != SQL_RC_OK:
             mylog.error("""
-'%s' 
-sqlca %s
-sqlca.sqlcode '%s'""" % (
-                func_name,
-                sqlca,
-                self.getsqlcode(sqlca.sqlcode)))
+func_name     '%s' 
+sqlca          %s
+sqlca.sqlcode '%s'
+""" % (func_name,
+       sqlca,
+       self.getsqlcode(sqlca.sqlcode)))
             self.get_sqlca_errormsg(sqlca)
         else:
-            mylog.debug("""%s SQL_RC_OK""" % func_name)
+            mylog.debug("""func_name %s SQL_RC_OK""" % func_name)
 
     def getsqlcode(self, sqlcode):
         """helper function to return literal string of error sqlcode
@@ -271,7 +292,7 @@ sqlca.sqlcode '%s'""" % (
 
             try:
                 self.stmt = c_char_p(self.encode_utf8(sql_1))
-                mylog.info("\n'%s'\n" % sql_1)
+                mylog.debug("\n'%s'\n" % sql_1)
  
                 cliRC = self.mDb2_Cli.libcli64.SQLExecDirect(self.hstmt, self.stmt, SQL_NTS)
                 self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.mDb2_Cli.hdbc, cliRC,"SQLExecDirect")

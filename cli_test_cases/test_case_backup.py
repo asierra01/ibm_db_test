@@ -61,13 +61,13 @@ class Db2CliTest_BackUpTest(unittest.TestCase):
         #the app has to terminate as this backup require no conn to db to perform the backup
         myDB2Backup = DB2Backup(self.mDb2_Cli)
         #_rc = self.mDb2_Cli.CLIAppTermShort()
-        ret = myDB2Backup.changeSQLF_DBTN_LOGARCHMETH1_Parameter()
+        ret = myDB2Backup.change_SQLF_DBTN_LOGARCHMETH1_Parameter()
         if ret == -1:
             self.verificationErrors.append("could not change LOGARCHMETH1")
 
         ret = myDB2Backup.BackupONLINE()
         if ret == -1:
-            self.verificationErrors.append("could not BackupOnline")
+            self.verificationErrors.append("could not Backup ONLINE")
 
         _rc = self.mDb2_Cli.CLIAppTermShort()
         ret = myDB2Backup.DeactivateAndBackup_OFFLINE()

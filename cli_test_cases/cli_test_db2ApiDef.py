@@ -213,6 +213,7 @@ struct_sqla_flagmsgs._fields_ = [
     ('padding', ctypes.c_int16),
     ('sqlca', struct_sqlca * 10),
 ]
+sqlca = struct_sqlca
 
 class struct_sqla_flaginfo(ctypes.Structure):
     _pack_ = True # source:False
@@ -3408,7 +3409,7 @@ __all__ = \
     'db2RunstatsData', 'db2InstanceStartStruct',
     'struct_db2gDbDirCloseScanStruct', 'db2ContactTypeData',
     'db2ExportStruct', 'struct_db2gTablespaceStruct',
-    'struct_db2ReadLogStruct', 'struct_sqlca', 'db2gCfg',
+    'struct_db2ReadLogStruct', 'struct_sqlca', 'db2gCfg', 'sqlca',
     'db2UpdateContactGroupData', 'struct_sqlu_media_entry',
     'struct_db2gHADRStartStruct', 'db2ExportIn',
     'struct_db2LoadQueryOutputStruct', 'struct_db2UpdateContactData',

@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import unittest
 import sys
+import platform
 from ctypes import  (c_ushort)
 #from _ctypes import CArgObject
 from utils.logconfig import mylog
@@ -26,6 +27,7 @@ class Db2CliTest_UnitTest(unittest.TestCase):
         super(Db2CliTest_UnitTest, self).__init__(methodName="runTest")
         mylog.info("testName '%s'" % testName)
         self.testName = testName
+        self.instance_memory = 0
         self.supported_ALL_ODBC3 = (c_ushort * SQL_API_ODBC3_ALL_FUNCTIONS)()
         self.verificationErrors = []
 
@@ -82,6 +84,7 @@ class Db2CliTest_UnitTest(unittest.TestCase):
         mylog.info("test id='%s'" % self.id())
 
         self.test_spserver()
+        #return
         self.test_EnvAttrSetGet()
         self.test_list_functions()
         self.test_count_GetODBC_SupportedFunctions()
@@ -104,7 +107,12 @@ class Db2CliTest_UnitTest(unittest.TestCase):
     def test_spserver(self):
         mySP_SERVER = SP_SERVER(self.mDb2_Cli)
         mySP_SERVER.do_spserver_test()
-        mySP_SERVER.do_spserver_python_path_test()
+
+        if platform.system() == "Windows":
+            mySP_SERVER.do_spserver_only_windows_test()
+        else:
+            mySP_SERVER.do_spserver_python_path_test()
+
         if hasattr(self, 'TextTestResult'):
             self.TextTestResult.addSuccess(sys._getframe(  ).f_code.co_name)
         return 0
@@ -219,9 +227,9 @@ this is a provoked exception spclient_python.Error
 
         myGetSetDBCfg = GetSetDBCfg(self.mDb2_Cli)
         #myGetSetDBCfg.TextTestResult = self.TextTestResult
-        if myGetSetDBCfg.getdbcfg() == -1:
-            mylog.error("test_GetSetDBCfg returned  -1")
-            self.verificationErrors.append("test_GetSetDBCfg returned  -1")
+        if myGetSetDBCfg.getdbcfg(self.instance_memory) == -1:
+            mylog.error("getdbcfg returned  -1")
+            self.verificationErrors.append("getdbcfg returned  -1")
         else:
             if hasattr(self, 'TextTestResult'):
                 self.TextTestResult.addSuccess(sys._getframe(  ).f_code.co_name) 
@@ -230,13 +238,13 @@ this is a provoked exception spclient_python.Error
     def test_GetSetDBCfg_Monitor(self):
 
         myGetSetDBCfgMonitor = GetSetDBCfg_Monitor(self.mDb2_Cli)
-        myGetSetDBCfgMonitor.readAutonomicsSwitches()
-        #if myGetSetDBCfg.getdbcfg() == -1:
-        #    mylog.error("test_GetSetDBCfg returned  -1")
-        #    self.verificationErrors.append("test_GetSetDBCfg returned  -1")
-        #else:
-        #    if hasattr(self, 'TextTestResult'):
-        #        self.TextTestResult.addSuccess(sys._getframe(  ).f_code.co_name) 
+        if myGetSetDBCfgMonitor.readAutonomicsSwitches() == -1:
+            mylog.error("readAutonomicsSwitches returned  -1")
+            self.verificationErrors.append("readAutonomicsSwitches returned  -1")
+        else:
+            if hasattr(self, 'TextTestResult'):
+                self.TextTestResult.addSuccess(sys._getframe(  ).f_code.co_name) 
+
         return 0
 
     def test_GetSetDBMCfg(self):
@@ -255,6 +263,8 @@ this is a provoked exception spclient_python.Error
         ret3 = myGetSetDBMCfg.getdbmcfg()
         if ret3 == -1:
             self.verificationErrors.append("could not getdbmcfg")
+        else:
+            self.instance_memory = myGetSetDBMCfg.instance_memory.value
 
         ret4 = myGetSetDBMCfg.setdbmcfg()
         if ret4 == -1:

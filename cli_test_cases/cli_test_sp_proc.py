@@ -13,11 +13,7 @@ from .db2_cli_constants import (
     SQL_HANDLE_DBC,
     SQL_COMMIT,
     SQL_SUCCESS,
-    SQL_API_SQLTABLES,
     SQL_HANDLE_STMT,
-    SQL_NO_DATA,
-    SQL_SUCCESS_WITH_INFO,
-    SQL_ATTR_QUERY_TIMEOUT,
     SQL_C_CHAR)
 from utils.logconfig import mylog
 import spclient_python
@@ -232,7 +228,7 @@ PROGRAM TYPE SUB
 EXTERNAL NAME 'spserver!general_example'
 @
 
-CREATE OR REPLACE   PROCEDURE GENERAL_WITH_NULLS_EXAMPLE (
+CREATE OR REPLACE PROCEDURE GENERAL_WITH_NULLS_EXAMPLE (
   IN quarter INTEGER,
   OUT errCode INTEGER,
   OUT errMsg CHAR(32))
@@ -265,7 +261,8 @@ PARAMETER STYLE SQL
 NO DBINFO
 FENCED NOT THREADSAFE
 PROGRAM TYPE SUB
-EXTERNAL NAME 'spserver!out_python_paths'@
+EXTERNAL NAME 'spserver!out_python_paths'
+@
 
 """
         if self.check_spserver() == -1:
@@ -282,20 +279,18 @@ EXTERNAL NAME 'spserver!out_python_paths'@
                                                       byref(self.hstmt))
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, clirc,"SQL_HANDLE_STMT SQLAllocHandle")
 
-        #procName  = c_char_p("OUT_LANGUAGE")
-        #select_str = "CALL %s.OUT_LANGUAGE (?)" % self.user
-        select_str = "CALL out_python_paths (?)" 
+        select_str = "CALL OUT_PYTHON_PATHS (?)" 
         if sys.version_info > (3,):
             select_str = select_str.encode('utf-8','ignore')
 
         self.stmt = c_char_p(select_str)
-        mylog.info("stmt %s" % self.stmt)
+        mylog.info("executing \n'%s'\n" % self.encode_utf8(self.stmt.value))
         clirc = self.mDb2_Cli.libcli64.SQLPrepare(self.hstmt, self.stmt, SQL_NTS)
 
         self.mDb2_Cli.describe_parameters(self.hstmt)
 
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, clirc,"SQLPrepare")
-        mOUT_PYTHON_PATH   = create_string_buffer(3000) 
+        out_python_path   = create_string_buffer(3000) 
         # bind the parameter to the statement 
         clirc = self.mDb2_Cli.libcli64.SQLBindParameter(self.hstmt,
                                                             1,
@@ -304,8 +299,8 @@ EXTERNAL NAME 'spserver!out_python_paths'@
                                                             SQL_CHAR,
                                                             9,
                                                             0,
-                                                            mOUT_PYTHON_PATH,
-                                                            sizeof(mOUT_PYTHON_PATH),
+                                                            out_python_path,
+                                                            sizeof(out_python_path),
                                                             self.myNull)
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, clirc,"SQLBindParameter 1")
         # execute the statement */
@@ -318,23 +313,20 @@ EXTERNAL NAME 'spserver!out_python_paths'@
 
         mylog.info("""
 
-executing  '%s'
 Stored procedure returned successfully.
-Stored procedures are implemented in mOUT_PYTHON_PATH: '%s'
-""" % (
-    self.encode_utf8(self.stmt.value),
-    self.encode_utf8(mOUT_PYTHON_PATH.value)))
+out_python_path: 
+'%s'
+""" % (self.encode_utf8(out_python_path.value)))
 
         clirc = self.mDb2_Cli.libcli64.SQLEndTran(SQL_HANDLE_DBC, self.hdbc, SQL_COMMIT)
         # free the statement handle
         clirc = self.mDb2_Cli.libcli64.SQLFreeHandle(SQL_HANDLE_STMT, self.hstmt)
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, clirc,"SQL_HANDLE_STMT SQLFreeHandle")
 
-
-    def do_spserver_test(self):
+    def do_spserver_only_windows_test(self):
 
         if self.check_spserver() == -1:
-            return
+            return -1
         self.register_spserver()
         #return 0
  
@@ -354,7 +346,7 @@ Stored procedures are implemented in mOUT_PYTHON_PATH: '%s'
             #raise RuntimeError("sizeof(PyCArgObject) invalid")
             mylog.warn("sizeof(PyCArgObject) invalid")
 
-        ref_henv = byref(self.mDb2_Cli.henv)
+        ref_henv    = byref(self.mDb2_Cli.henv)
         argobj_henv = PyCArgObject.from_address(id(ref_henv)) 
         #print ("%s " % hex(argobj_henv.p))
         #print ("type '%s' " % type(argobj_henv.p)) <type 'long>'
@@ -363,7 +355,7 @@ Stored procedures are implemented in mOUT_PYTHON_PATH: '%s'
             mylog.warning("spserver not Found !!! so all spserver related code will fail")
         else:
             mylog.info("spserver present !!! ")
-        ref_hdbc = byref(self.mDb2_Cli.hdbc)
+        ref_hdbc    = byref(self.mDb2_Cli.hdbc)
         argobj_hdbc = PyCArgObject.from_address(id(ref_hdbc)) 
         mylog.info ("hex(argobj_hdbc.p) %s " % hex(argobj_hdbc.p))
         mylog.info("argobj_henv %s" % argobj_henv)
@@ -379,16 +371,48 @@ Stored procedures are implemented in mOUT_PYTHON_PATH: '%s'
                     byref(self.mDb2_Cli.hdbc),
                     mylog.info
                     )
-            else:# but this below also works on windows
-                mylog.info("spclient_python.python_run_the_test")
-                spclient_python.python_run_the_test(
-                    argobj_henv.p, 
-                    argobj_hdbc.p,
-                    mylog.info
-                    )
 
         except Exception as e:
             mylog.error("Exception %s %s" % (type(e), e))
+            return -1
         return 0
 
+    def do_spserver_test(self):
+
+        if self.check_spserver() == -1:
+            return -1
+        self.register_spserver()
+ 
+        mylog.info("byref(self.mDb2_Cli.henv) '%s' type '%s'" % (
+            byref(self.mDb2_Cli.henv),
+            type(byref(self.mDb2_Cli.henv))))
+
+        mylog.info("byref(self.mDb2_Cli.hdbc) '%s' type '%s'" % (
+            byref(self.mDb2_Cli.hdbc),
+            type(byref(self.mDb2_Cli.hdbc))))
+
+        ret = self.check_spserver()
+        if ret == -1:
+            mylog.warning("spserver not Found !!! so all spserver related code will fail")
+        else:
+            mylog.info("spserver present !!! ")
+        ref_henv    = byref(self.mDb2_Cli.henv)
+        argobj_henv = PyCArgObject.from_address(id(ref_henv)) 
+        ref_hdbc    = byref(self.mDb2_Cli.hdbc)
+        argobj_hdbc = PyCArgObject.from_address(id(ref_hdbc)) 
+        mylog.info ("hex(argobj_hdbc.p) %s " % hex(argobj_hdbc.p))
+        mylog.info("argobj_henv %s" % argobj_henv)
+        mylog.info("argobj_hdbc %s" % argobj_hdbc)
+        try:
+            mylog.info("spclient_python.python_run_the_test")
+            spclient_python.python_run_the_test(
+                argobj_henv.p,
+                argobj_hdbc.p,
+                mylog.info
+                )
+
+        except Exception as e:
+            mylog.error("Exception %s %s" % (type(e), e))
+            return -1
+        return 0
 

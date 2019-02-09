@@ -16,7 +16,7 @@ from .db2_cli_constants import (
     SQL_ATTR_QUERY_TIMEOUT,
     SQL_C_CHAR)
 from utils.logconfig import mylog
-
+from operator import itemgetter
 
 #import logging
 __all__ = ['GetTables']
@@ -34,6 +34,7 @@ class GetTables(Common_Class):
     """
     def __init__(self, mDb2_Cli):
         super(GetTables, self).__init__(mDb2_Cli)
+        self.max_table_name_len = 0
 
     def gettables(self, supported_ALL_ODBC3):
         '''SQLRETURN SQL_API SQLTables(SQLHSTMT    hstmt,
@@ -73,13 +74,28 @@ class GetTables(Common_Class):
             szTableName   = c_char_p(self.encode_utf8("%"))
             cbTableName   = c_ushort(len(szTableName.value))
 
-            szTableType   = c_char_p(self.encode_utf8("TABLE, VIEW, SYSTEM TABLE, ALIAS, SYNONYM, GLOBAL TEMPORARY TABLE, AUXILIARY TABLE, MATERIALIZED QUERY TABLE, ACCEL-ONLY TABLE"))
+            table_type_list = ['TABLE',
+                               'VIEW',
+                               'SYSTEM TABLE',
+                               'ALIAS',
+                               'SYNONYM',
+                               'GLOBAL TEMPORARY TABLE',
+                               'AUXILIARY TABLE',
+                               'MATERIALIZED QUERY TABLE',
+                               'ACCEL-ONLY TABLE']
+            seperator = ', '
+            szTableType   = c_char_p(self.encode_utf8(seperator.join(table_type_list)))
             cbTableType   = c_ushort(len(szTableType.value))
 
-            mylog.info("szCatalogName '%s' cbCatalogName %s" % (self.encode_utf8(szCatalogName.value), cbCatalogName))
-            mylog.info("szSchemaName  '%s' cbSchemaName  %s " % (self.encode_utf8(szSchemaName.value), cbSchemaName))
-            mylog.info("szTableName   '%s'" % self.encode_utf8(szTableName.value))
-            mylog.info("cbTableType   \n'%s'" % self.encode_utf8(szTableType.value))
+            mylog.info("""
+szCatalogName '%s' size %s
+szSchemaName  '%s' size %s
+szTableName   '%s'
+cbTableType   '%s'
+""" %  (self.encode_utf8(szCatalogName.value), cbCatalogName.value,
+        self.encode_utf8(szSchemaName.value), cbSchemaName.value,
+        self.encode_utf8(szTableName.value),
+        self.encode_utf8(szTableType.value)))
 
             clirc = self.mDb2_Cli.libcli64.SQLAllocHandle(SQL_HANDLE_STMT,
                                                           self.mDb2_Cli.hdbc,
@@ -107,20 +123,20 @@ class GetTables(Common_Class):
             if clirc != SQL_SUCCESS:
                 mylog.error("SQLTables")
 
-            if clirc == SQL_SUCCESS:
+            else:#if clirc == SQL_SUCCESS:
                 clirc_fetch = SQL_SUCCESS
                 self.mDb2_Cli.describe_columns(self.hstmt)
 
                 while clirc_fetch == SQL_SUCCESS:
                     one_character = self.encode_utf8(' ')
-                    self.table_name    = c_char_p(one_character * 128)
+                    self.table_name    = c_char_p(one_character * 256)
                     self.table_schema  = c_char_p(one_character * 128)
                     self.table_cat     = c_char_p(one_character * 128)
                     self.table_type    = c_char_p(one_character * 128)
-                    self.table_remarks = c_char_p(one_character * 254)
+                    self.table_remarks = c_char_p(one_character * 512)
                     clirc_fetch        = self.mDb2_Cli.libcli64.SQLFetch(self.hstmt)
                     if clirc_fetch == SQL_NO_DATA:
-                        mylog.info("SQLFetch %d SQL_NO_DATA " % clirc_fetch)
+                        mylog.debug("SQLFetch %d SQL_NO_DATA " % clirc_fetch)
 
                     elif clirc_fetch == SQL_SUCCESS:
                         pass
@@ -132,7 +148,9 @@ class GetTables(Common_Class):
                     if clirc_fetch == SQL_SUCCESS or clirc_fetch == SQL_SUCCESS_WITH_INFO:
                         #mylog.info("fecthing ....")
                         self.getdata()
-            table.add_rows(self.my_rows, header = False)
+            self.my_rows = sorted(self.my_rows, key=itemgetter(0))
+            table.add_rows(self.my_rows, header=False)
+            table._width[0] = self.max_table_name_len 
 
             mylog.info("\n%s\n" % table.draw())
 
@@ -150,11 +168,11 @@ class GetTables(Common_Class):
         indicator1 = c_int(0)
         indicator_table_remarks = c_int(0)
         self.mDb2_Cli.libcli64.SQLGetData(self.hstmt,
-                                              2,
-                                              SQL_C_CHAR,
-                                              self.table_schema,
-                                              len(self.table_schema.value),
-                                              byref(indicator1))
+                                          2,
+                                          SQL_C_CHAR,
+                                          self.table_schema,
+                                          len(self.table_schema.value),
+                                          byref(indicator1))
         # print rc1
         self.mDb2_Cli.libcli64.SQLGetData(self.hstmt,
                                               3,
@@ -162,18 +180,21 @@ class GetTables(Common_Class):
                                               self.table_name,
                                               len(self.table_name.value),
                                               byref(indicator1))
+
         self.mDb2_Cli.libcli64.SQLGetData(self.hstmt,
                                               4,
                                               SQL_C_CHAR,
                                               self.table_type,
                                               len(self.table_type.value),
                                               byref(indicator1))
+
         self.mDb2_Cli.libcli64.SQLGetData(self.hstmt,
                                               5,
                                               SQL_C_CHAR,
                                               self.table_remarks,
                                               len(self.table_remarks.value),
                                               byref(indicator_table_remarks))
+
         if indicator_table_remarks.value == -1:
             mylog.debug("no table remarks indicator_table_remarks '%d'" % indicator_table_remarks.value)
         #else:
@@ -181,13 +202,17 @@ class GetTables(Common_Class):
         
         # print rc1
         self.mDb2_Cli.libcli64.SQLGetData(self.hstmt,
-                                              1,
-                                              SQL_C_CHAR,
-                                              self.table_cat,
-                                              len(self.table_cat.value),
-                                              byref(indicator1))
+                                          1,
+                                          SQL_C_CHAR,
+                                          self.table_cat,
+                                          len(self.table_cat.value),
+                                          byref(indicator1))
         # print rc1
-        self.my_rows.append([self.encode_utf8(self.table_schema.value) + "." + self.encode_utf8(self.table_name.value),
+        first_column = self.encode_utf8(self.table_schema.value) + "." + self.encode_utf8(self.table_name.value)
+        if len(first_column) > self.max_table_name_len:
+            self.max_table_name_len = len(first_column)
+
+        self.my_rows.append([first_column,
                              self.encode_utf8(self.table_type.value),
                              "'%s'" % self.encode_utf8(self.table_remarks.value.strip())])
 

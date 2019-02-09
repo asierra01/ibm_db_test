@@ -88,7 +88,7 @@ class BulkInsert(Common_Class):
     """
 
     def __init__(self, mDb2_Cli):
-        super(BulkInsert,self).__init__(mDb2_Cli)
+        super(BulkInsert, self).__init__(mDb2_Cli)
         self.myNull = c_void_p(None)
 
     def columnbinds(self, localhdbc, localhtsmt):
@@ -133,13 +133,14 @@ class BulkInsert(Common_Class):
 
         self.another_localhtsmt       = c_void_p(None)
         clirc = self.SQLAllocHandle(SQL_HANDLE_STMT,
-                                                          self.localhdbc,
-                                                          byref(self.another_localhtsmt))
+                                    self.localhdbc,
+                                    byref(self.another_localhtsmt))
         self.STMT_HANDLE_CHECK(self.another_localhtsmt, self.localhdbc, clirc,  "another_localhtsmt SQLAllocHandle")
 
         mylog.info("""
 executing %s
 """ % self.encode_utf8(self.sqlstmt_check_tblsp .value))  
+
         rc = self.SQLExecDirect(self.another_localhtsmt, 
                                 self.sqlstmt_check_tblsp , 
                                 SQL_NTS)
@@ -180,13 +181,13 @@ executing %s
 
         if not found:
             mylog.info("""
-    executing %s
-    """ % self.encode_utf8(self.sqlstmt_create_tblsp.value))
+executing %s
+""" % self.encode_utf8(self.sqlstmt_create_tblsp.value))
 
             self.create__tblsp_localhtsmt       = c_void_p(None)
             clirc = self.SQLAllocHandle(SQL_HANDLE_STMT,
-                                                              self.localhdbc,
-                                                              byref(self.create__tblsp_localhtsmt))
+                                        self.localhdbc,
+                                        byref(self.create__tblsp_localhtsmt))
             self.STMT_HANDLE_CHECK(self.create__tblsp_localhtsmt, self.localhdbc, clirc,  "create__tblsp_localhtsmt SQLAllocHandle")
 
             rc = self.SQLExecDirect(self.create__tblsp_localhtsmt, 
@@ -210,7 +211,7 @@ executing %s
         mytable.set_cols_align(['l', 'l'])
         mytable.set_header_align(['l', 'l'])
         mytable.header(["TableName", "size"])
-        mytable.set_cols_width([50,10])
+        mytable.set_cols_width([50, 10])
         return mytable
     
 
@@ -287,16 +288,16 @@ executing %s
         clirc = self.SQLCloseCursor(self.another_table_localhtsmt)
         self.STMT_HANDLE_CHECK(self.another_table_localhtsmt, self.localhdbc, clirc,"SQLCloseCursor")
 
-        mylog.info("tables \n%s\n\n" % mytable.draw())
         clirc = self.SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
 
         if not table_found:
 
             mylog.info("""
-    executing '%s'
-    """ % self.encode_utf8(self.sqlstmt_create.value))
+table was not found...creating it
+executing '%s'
+""" % self.encode_utf8(self.sqlstmt_create.value))
 
-            self.create__table_localhtsmt       = c_void_p(None)
+            self.create__table_localhtsmt = c_void_p(None)
             clirc = self.SQLAllocHandle(SQL_HANDLE_STMT,
                                         self.localhdbc,
                                         byref(self.create__table_localhtsmt))
@@ -312,7 +313,8 @@ executing %s
             clirc = self.SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
             clirc = self.SQLFreeHandle(SQL_HANDLE_STMT, self.create__table_localhtsmt)
             self.STMT_HANDLE_CHECK(self.create__table_localhtsmt, self.localhdbc, clirc,  "SQL_HANDLE_STMT create__table_localhtsmt SQLFreeHandle")
-
+        else:
+            mylog.info("tables \n%s\n\n" % mytable.draw())
 
         clirc = self.SQLFreeHandle(SQL_HANDLE_STMT, self.another_table_localhtsmt)
         self.STMT_HANDLE_CHECK(self.another_table_localhtsmt, self.localhdbc, clirc,  "SQL_HANDLE_STMT another_table_localhtsmt SQLFreeHandle")
@@ -336,7 +338,7 @@ executing %s
 
         for i in range(self.ROWSET_SIZE):
 
-            if i in  [0,1,2, self.ROWSET_SIZE - 1,self.ROWSET_SIZE]:
+            if i in  [0, 1, 2, self.ROWSET_SIZE - 1, self.ROWSET_SIZE]:
                 mylog.debug("data will be inserted Cust_Num %d First_Name '%s' len %d sizeof '%d' '%s' len %d sizeof %d rowStatus %d" % (
                     self.Cust_Num[i],
                     self.First_Name[i], len(self.First_Name[i]),  self.First_Name_L[i],
@@ -363,6 +365,7 @@ executing %s
             mylog.error("error count %d" % error_count)
         else:
             mylog.info("No errors")
+        return error_count
 
     def set_str_queries(self):
 
@@ -372,10 +375,11 @@ executing %s
 SELECT 
     NAME 
 FROM  
-    SYSIBM.SYSTABLES 
+    SYSIBM.SYSTABLES
 WHERE 
-    CREATOR= '%s'
-''' % self.user
+    CREATOR = '%s' AND 
+    NAME = 'TEST_BLK_INSERT_CUSTOMER'
+''' % self.getDB2_USER()
 
         str_check_tblsp = '''
 SELECT 
@@ -395,20 +399,21 @@ DROPPED TABLE RECOVERY OFF
 """
 
         str_reorg_cmd = '''
-CALL SYSPROC.ADMIN_CMD ('REORG TABLE TEST_BLK_INSERT_CUSTOMER')
-'''
+CALL SYSPROC.ADMIN_CMD ('REORG TABLE "%s"."TEST_BLK_INSERT_CUSTOMER"')
+''' % self.getDB2_USER()
         str_drop_table = '''
-DROP TABLE "TEST_BLK_INSERT_CUSTOMER"
-'''
+DROP TABLE 
+    "%s"."TEST_BLK_INSERT_CUSTOMER"
+''' % self.getDB2_USER()
 
         str_create = '''
 CREATE TABLE 
-    TEST_BLK_INSERT_CUSTOMER( 
+    "%s"."TEST_BLK_INSERT_CUSTOMER"( 
       Cust_Num INTEGER,  
       First_Name VARCHAR(21), 
       Last_Name VARCHAR(21)) 
 IN TBNOTLOG
-'''
+''' % self.getDB2_USER()
         if platform.system() == "Windows":
             str_create += """
 ORGANIZE BY ROW"""
@@ -416,9 +421,9 @@ ORGANIZE BY ROW"""
 
         str_alter = '''
 ALTER TABLE 
-    TEST_BLK_INSERT_CUSTOMER 
+    "%s"."TEST_BLK_INSERT_CUSTOMER" 
 ACTIVATE NOT LOGGED INITIALLY
-'''
+''' % self.getDB2_USER()
 
         str_select = '''
 SELECT 
@@ -427,7 +432,7 @@ SELECT
     Last_Name 
 FROM 
     "TEST_BLK_INSERT_CUSTOMER"
-'''
+''' #% self.getDB2_USER()
 
         str_create         = self.encode_utf8(str_create)
         str_alter          = self.encode_utf8(str_alter)
@@ -453,7 +458,7 @@ FROM
         self.localhtsmt       = c_void_p(None)
         self.set_the_memory()
 
-        self.user = self.my_dict['DB2_USER'].upper()
+        self.user = self.getDB2_USER()
 
         my_cursor_type   = c_int32(SQL_CURSOR_DYNAMIC)
 
@@ -585,15 +590,19 @@ executing %s
         self.set_the_data()
 
         mylog.info('insert started')
+        mylog.info("""
+executing %s
+""" % self.encode_utf8(self.sqlstmt_select.value))
+        
         mylog.debug("doing the SQLExecDirect " )
 
         rc = self.SQLExecDirect(self.localhtsmt, self.sqlstmt_select, SQL_NTS)
         self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, "sqlstmt_select SQLExecDirect")
 
-        mylog.info("doing the columnbinds count %d" % 0)
         self.columnbinds(self.localhdbc, self.localhtsmt)
         start_time = datetime.now() 
         total_inserted = 0
+        ret = 0
 
         for j in range(self.ITERACTIONS):
             total_inserted += self.ROWSET_SIZE
@@ -606,8 +615,9 @@ executing %s
                 break
 
             mylog.debug("done now check_response")
-            self.check_response()
-            mylog.debug("done now SQL_COMMIT")
+            ret = self.check_response()
+            if ret != 0:
+                break
 
             #clirc = self.SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
             #self.DBC_HANDLE_CHECK(self.localhdbc, clirc,"SQL_COMMIT SQLEndTran")
@@ -618,8 +628,9 @@ executing %s
         clirc = self.SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
         self.DBC_HANDLE_CHECK(self.localhdbc, clirc,"SQL_COMMIT SQLEndTran")
 
-        clirc = self.SQLCloseCursor(self.localhtsmt)
-        self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, clirc,"SQLCloseCursor")
+        if ret == 0:
+            clirc = self.SQLCloseCursor(self.localhtsmt)
+            self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, clirc,"SQLCloseCursor")
 
         end_time  = datetime.now() - start_time
         mylog.info("done all committed '%s' '%s'" % (end_time, "{:,}".format(total_inserted)))

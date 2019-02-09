@@ -13,14 +13,15 @@ import sys
 
 from . import Common_Class
 from . import (db2Cfg,
-                       struct_sqlca,
-                       struct_db2CfgParam,
-                       db2CfgDatabase,
-                       db2CfgDelayed)
+               sqlca,
+               db2CfgParam,
+               db2CfgDatabase,
+               db2CfgDelayed)
 
 
 from .db2_cli_constants import (
     db2CfgParamAutomatic,
+    db2CfgParamManual,
     SQLF_DBTN_LOGPATH,
     SQLF_DBTN_BUFF_PAGE,
     SQLF_DBTN_MAXFILOP,
@@ -48,6 +49,7 @@ from .db2_cli_constants import (
 from utils.logconfig import mylog
 from sqlcodes import SQL_RC_OK
 from . import db2_clu_constants
+from cli_test_cases.db2_cli_constants import db2CfgParamComputed
 
 
 __all__ = ['GetSetDBCfg']
@@ -66,7 +68,7 @@ class GetSetDBCfg(Common_Class):
 
     Attributes
     ----------
-    cfgParameters : :class:`db2ApiDef.struct_db2CfgParam`
+    cfgParameters : :class:`db2ApiDef.db2CfgParam`
     """
 
     def __init__(self, mDb2_Cli):
@@ -79,26 +81,23 @@ class GetSetDBCfg(Common_Class):
         fill the array with the parameters we will inquire
         """
 
-        self.cfgParameters = (struct_db2CfgParam * 20)() # cli_test.db2CfgGet.struct_db2CfgParam_Array_2 
+        self.cfgParameters = (db2CfgParam * 20)() # cli_test.db2CfgGet.struct_db2CfgParam_Array_2 
         self.setParameter(self.cfgParameters[0], SQLF_DBTN_LOGPATH)
 
         self.max_appls = c_int(0)
-        self.setParameterInt(1, SQLF_DBTN_MAXAPPLS, self.max_appls)
-        #self.setParameter_int(self.cfgParameters[1], SQLF_DBTN_MAXAPPLS, self.max_appls)
+        self.setParameterInt(1, SQLF_DBTN_MAXAPPLS, self.max_appls, db2CfgParamAutomatic)
 
         self.max_file_op = c_int(0)
-        self.setParameterInt(2, SQLF_DBTN_MAXFILOP, self.max_file_op)
-        #self.setParameter_int(self.cfgParameters[2], SQLF_DBTN_MAXFILOP, self.max_file_op)
+        self.setParameterInt(2, SQLF_DBTN_MAXFILOP, self.max_file_op, db2CfgParamAutomatic)
 
         self.max_db_heap = c_int(0)
-        self.setParameterInt(3, SQLF_DBTN_DB_HEAP, self.max_db_heap)
+        self.setParameterInt(3, SQLF_DBTN_DB_HEAP, self.max_db_heap, db2CfgParamAutomatic)
 
         self.max_logfile_siz = c_int(0)
         self.setParameterInt(4, SQLF_DBTN_LOGFIL_SIZ, self.max_logfile_siz)
 
         self.max_database_memory = c_int(0)
-        # Darwin DB2 10.1 does not have SQLF_DBTN_DATABASE_MEMORY
-        self.setParameterInt(5, SQLF_DBTN_DATABASE_MEMORY, self.max_database_memory)
+        self.setParameterInt(5, SQLF_DBTN_DATABASE_MEMORY, self.max_database_memory, db2CfgParamAutomatic)
 
         self.setParameter(self.cfgParameters[6], SQLF_DBTN_LOGARCHMETH1)
         self.setParameter(self.cfgParameters[7], SQLF_DBTN_LOGARCHMETH2)
@@ -107,34 +106,34 @@ class GetSetDBCfg(Common_Class):
         self.setParameterInt(8, SQLF_DBTN_LOGARCHCOMPR1, self.log_arch1_compress)
 
         self.group_buffer_pool_size = c_int(0)
-        self.setParameterInt(9, SQLF_DBTN_CF_GBP_SZ, self.group_buffer_pool_size)
+        self.setParameterInt(9, SQLF_DBTN_CF_GBP_SZ, self.group_buffer_pool_size, db2CfgParamAutomatic)
 
         self.global_lock_memory_size = c_int(0)
-        self.setParameterInt(10, SQLF_DBTN_CF_LOCK_SZ, self.global_lock_memory_size)
+        self.setParameterInt(10, SQLF_DBTN_CF_LOCK_SZ, self.global_lock_memory_size, db2CfgParamAutomatic)
 
         self.shared_comm_area_size = c_int(0)
-        self.setParameterInt(11, SQLF_DBTN_CF_SCA_SZ, self.shared_comm_area_size)
+        self.setParameterInt(11, SQLF_DBTN_CF_SCA_SZ, self.shared_comm_area_size, db2CfgParamAutomatic)
 
         self.database_mem_size = c_int(0)
-        self.setParameterInt(12, SQLF_DBTN_CF_DB_MEM_SZ, self.database_mem_size)
+        self.setParameterInt(12, SQLF_DBTN_CF_DB_MEM_SZ, self.database_mem_size, db2CfgParamAutomatic)
 
         self.appl_memory = c_int(0)
-        self.setParameterInt(13, SQLF_DBTN_APPL_MEMORY, self.appl_memory)
+        self.setParameterInt(13, SQLF_DBTN_APPL_MEMORY, self.appl_memory, db2CfgParamAutomatic)
 
         self.self_tunning_memory = c_int(0)
         self.setParameterInt(14, SQLF_DBTN_SELF_TUNING_MEM, self.self_tunning_memory)
 
         self.appl_heap_size = c_int(0)
-        self.setParameterInt(15, SQLF_DBTN_APPLHEAPSZ, self.appl_heap_size)
+        self.setParameterInt(15, SQLF_DBTN_APPLHEAPSZ, self.appl_heap_size, db2CfgParamAutomatic)
 
         self.log_buf_size = c_int(0)
         self.setParameterInt(16, SQLF_DBTN_LOGBUFSZ, self.log_buf_size)
 
         self.buffer_pool_size = c_int(0)
-        self.setParameterInt(17, SQLF_DBTN_BUFF_PAGE, self.buffer_pool_size)
+        self.setParameterInt(17, SQLF_DBTN_BUFF_PAGE, self.buffer_pool_size, db2CfgParamAutomatic)
 
         self.util_heap_size =  c_int(0)
-        self.setParameterInt(18, SQLF_DBTN_UTIL_HEAP_SZ, self.util_heap_size)
+        self.setParameterInt(18, SQLF_DBTN_UTIL_HEAP_SZ, self.util_heap_size, db2CfgParamAutomatic)
 
         self.log_ddl_stmts =  c_int(0)
         self.setParameterInt(19, SQLF_DBTN_LOG_DDL_STMTS, self.log_ddl_stmts)
@@ -212,8 +211,8 @@ class GetSetDBCfg(Common_Class):
         if self.util_heap_size.value < 50000:
             self.util_heap_size.value = 50000
 
-        #if self.max_database_memory.value < 20000:
-        #    self.max_database_memory.value = 20000
+        if self.max_database_memory.value < 20000:
+            self.max_database_memory.value = 20000
 
         if self.appl_heap_size.value < 40000:
             self.appl_heap_size.value = 40000
@@ -227,11 +226,33 @@ class GetSetDBCfg(Common_Class):
         if self.log_buf_size.value < 70000:
             self.log_buf_size.value = 70000
 
-    def create_log_row4(self, parameters_name, parameter):
-        return [parameters_name,    "%d " % parameter.value, self.mDb2_Cli.human_format(parameter.value * 4 * 1024) ]
+    def create_log_row4(self, parameters_name, parameter, index):
 
-    def create_log_row(self, parameters_name, parameter):
-        return [parameters_name,    "%d " % parameter.value, parameter.value ]
+        if index >= 0:
+            flags = self.cfgParameters[index].flags
+        else:
+            flags = 0
+
+        if flags == 1:
+            flags = "1=db2CfgParamAutomatic"
+        elif flags == 2:
+            flags = "2=db2CfgParamComputed"
+        elif flags == 4:
+            flags = "4=db2CfgImmediate"
+        elif flags == 8:
+            flags = "8=db2CfgDelayed"
+        elif flags == 16:
+            flags = "16=db2CfgParamManual"
+
+        return [parameters_name,    "%d " % parameter.value,
+                self.mDb2_Cli.human_format(parameter.value * 4 * 1024),
+                flags ]
+
+    def create_log_row(self, parameters_name, parameter, flags=0):
+        return [parameters_name,
+                "%d " % parameter.value,
+                parameter.value,
+                flags ]
 
     def setdbcfg(self):
         """change db cfg parameters
@@ -246,10 +267,7 @@ class GetSetDBCfg(Common_Class):
         SQLF_DBTN_LOG_DDL_STMTS
         SQLF_DBTN_AUTO_STATS_VIEWS
         """
-        self.cfgParameters = (struct_db2CfgParam * 15)() # cli_test.db2CfgGet.struct_db2CfgParam_Array_2
-
-        #if platform.system() == "Darwin":
-        #    return
+        self.cfgParameters = (db2CfgParam * 15)()
 
         self.self_tunning_memory.value    = 1
         self.auto_tabl_maint              = c_int(1)
@@ -265,85 +283,82 @@ class GetSetDBCfg(Common_Class):
         self.setParameterInt(0, SQLF_DBTN_BUFF_PAGE,           self.buffer_pool_size, db2CfgParamAutomatic)
         self.setParameterInt(1, SQLF_DBTN_APPL_MEMORY,         self.appl_memory, db2CfgParamAutomatic)
         self.setParameterInt(2, SQLF_DBTN_DB_HEAP,             self.max_db_heap, db2CfgParamAutomatic)
-        self.setParameterInt(3, SQLF_DBTN_LOGFIL_SIZ,          self.max_logfile_siz)
+        self.setParameterInt(3, SQLF_DBTN_LOGFIL_SIZ,          self.max_logfile_siz, db2CfgParamManual)
         self.setParameterInt(4, SQLF_DBTN_SELF_TUNING_MEM,     self.self_tunning_memory)
-        self.setParameterInt(5, SQLF_DBTN_LOGBUFSZ,            self.log_buf_size)
+        self.setParameterInt(5, SQLF_DBTN_LOGBUFSZ,            self.log_buf_size, db2CfgParamManual)
         self.setParameterInt(6, SQLF_DBTN_APPLHEAPSZ,          self.appl_heap_size, db2CfgParamAutomatic)
-        self.setParameterInt(7, SQLF_DBTN_UTIL_HEAP_SZ,        self.util_heap_size)
+
+        if platform.system() == "Darwin":
+            self.setParameterInt(7, SQLF_DBTN_UTIL_HEAP_SZ,        self.util_heap_size, db2CfgParamManual)
+        else:
+            self.setParameterInt(7, SQLF_DBTN_UTIL_HEAP_SZ,        self.util_heap_size, db2CfgParamAutomatic)
+
         self.setParameterInt(8, SQLF_DBTN_AUTO_REORG,          self.auto_tabl_maint)
         self.setParameterInt(9, SQLF_DBTN_LOG_DDL_STMTS,       self.log_ddl_stmts)
         self.setParameterInt(10, SQLF_DBTN_AUTO_STATS_VIEWS,   self.auto_stats_views)
 
         if platform.system() != "Darwin":
-            self.setParameterInt(11, SQLF_DBTN_DATABASE_MEMORY,self.max_database_memory, db2CfgParamAutomatic)
+            self.setParameterInt(11, SQLF_DBTN_DATABASE_MEMORY, self.max_database_memory, db2CfgParamAutomatic)
         else:
-            mylog.warn("DB2 10.1 on mac doesnt have SQLF_DBTN_DATABASE_MEMORY")
-
+            self.setParameterInt(11, SQLF_DBTN_DATABASE_MEMORY, self.max_database_memory, db2CfgParamComputed)
 
         table = Texttable()
         table.set_deco(Texttable.HEADER)
-        table.set_header_align(['l', 'r', 'r'])
-        table.set_cols_dtype(['t', 't', 't'])
-        table.set_cols_align(['l', 'r', 'r'])
-        table.header(["db cfg token", " value", "value * 4K"])
-        table.set_cols_width([55, 20, 20])
+        table.set_header_align(['l', 'r', 'r', 'l'])
+        table.set_cols_dtype(['t', 't', 't', 't'])
+        table.set_cols_align(['l', 'r', 'r', 'l'])
+        table.header(["db cfg token", " value", "value * 4K", "flag"])
+        table.set_cols_width([28, 20, 20, 25])
 
 
-        table.add_row(self.create_log_row4("SQLF_DBTN_BUFF_PAGE",  self.buffer_pool_size))
-        table.add_row(self.create_log_row4("SQLF_DBTN_APPL_MEMORY",self.appl_memory))
-        table.add_row(self.create_log_row4("SQLF_DBTN_DB_HEAP",    self.max_db_heap))
-        table.add_row(self.create_log_row4("SQLF_DBTN_LOGFIL_SIZ", self.max_logfile_siz))
-
-        if platform.system() == "Darwin":
-            table.add_row(self.create_log_row4("SQLF_DBTN_DATABASE_MEMORY Not under Darwin DB2 10.1", self.max_database_memory))
-        else:
-            table.add_row(self.create_log_row4("SQLF_DBTN_DATABASE_MEMORY", self.max_database_memory))
-
-        table.add_row(self.create_log_row("SQLF_DBTN_SELF_TUNING_MEM", self.self_tunning_memory))
-        table.add_row(self.create_log_row4("SQLF_DBTN_LOGBUFSZ",       self.log_buf_size))
-        table.add_row(self.create_log_row4("SQLF_DBTN_APPLHEAPSZ",     self.appl_heap_size))
-        table.add_row(self.create_log_row4("SQLF_DBTN_UTIL_HEAP_SZ",   self.util_heap_size))
-        table.add_row(self.create_log_row("SQLF_DBTN_AUTO_REORG",      self.auto_tabl_maint))
-        table.add_row(self.create_log_row("SQLF_DBTN_LOG_DDL_STMTS",   self.log_ddl_stmts))
-        table.add_row(self.create_log_row("SQLF_DBTN_AUTO_STATS_VIEWS",self.auto_stats_views))
+        table.add_row(self.create_log_row4("SQLF_DBTN_BUFF_PAGE",  self.buffer_pool_size, 0))
+        table.add_row(self.create_log_row4("SQLF_DBTN_APPL_MEMORY",self.appl_memory, 1))
+        table.add_row(self.create_log_row4("SQLF_DBTN_DB_HEAP",    self.max_db_heap, 2))
+        table.add_row(self.create_log_row4("SQLF_DBTN_LOGFIL_SIZ", self.max_logfile_siz, 3))
+        table.add_row(self.create_log_row("SQLF_DBTN_SELF_TUNING_MEM", self.self_tunning_memory, 4))
+        table.add_row(self.create_log_row4("SQLF_DBTN_LOGBUFSZ",       self.log_buf_size, 5))
+        table.add_row(self.create_log_row4("SQLF_DBTN_APPLHEAPSZ",     self.appl_heap_size, 6))
+        table.add_row(self.create_log_row4("SQLF_DBTN_UTIL_HEAP_SZ",   self.util_heap_size, 7))
+        table.add_row(self.create_log_row("SQLF_DBTN_AUTO_REORG",      self.auto_tabl_maint, 8))
+        table.add_row(self.create_log_row("SQLF_DBTN_LOG_DDL_STMTS",   self.log_ddl_stmts, 9))
+        table.add_row(self.create_log_row("SQLF_DBTN_AUTO_STATS_VIEWS",self.auto_stats_views, 10))
+        table.add_row(self.create_log_row4("SQLF_DBTN_DATABASE_MEMORY", self.max_database_memory, 11))
 
         cfgStruct            = db2Cfg()
-        if platform.system() != "Darwin":
-            cfgStruct.numItems   = 12
-        else:
-            cfgStruct.numItems = 11
-            mylog.warn("DB2 10.1 on mac doesnt have SQLF_DBTN_DATABASE_MEMORY, 11 items only")
+
+        cfgStruct.numItems   = 12
+
         cfgStruct.paramArray = self.cfgParameters
         cfgStruct.flags      = db2CfgDatabase | db2CfgDelayed
         cfgStruct.dbName     = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
 
         try:
-            rc = self.mDb2_Cli.libcli64.db2CfgSet(self.db2Version, byref(cfgStruct), byref(sqlca))
+            rc = self.mDb2_Cli.libcli64.db2CfgSet(self.db2Version, byref(cfgStruct), byref(_sqlca))
 
             if rc != SQL_RC_OK:
-                mylog.error("db2CfgSet rc = '%d' sqlca '%s' " % (rc, sqlca))
-                self.get_sqlca_errormsg(sqlca)
+                mylog.error("db2CfgSet rc = '%d' sqlca '%s' " % (rc, _sqlca))
+                self.get_sqlca_errormsg(_sqlca)
                 return -1
             elif sqlca.sqlcode != SQL_RC_OK :
                 #SQLF_WARNING_BUFFPAGE
 
-                mylog.error("db2CfgSet rc = '%d' sqlca %s sqlcode '%s' " % (rc, sqlca, self.getsqlcode(sqlca.sqlcode)))
-                self.get_sqlca_errormsg(sqlca)
+                mylog.error("db2CfgSet rc = '%d' sqlca %s sqlcode '%s' " % (rc, _sqlca, self.getsqlcode(_sqlca.sqlcode)))
+                self.get_sqlca_errormsg(_sqlca)
 
-                if sqlca.sqlcode == db2_clu_constants.SQLF_RC_INVTKN:
+                if _sqlca.sqlcode == db2_clu_constants.SQLF_RC_INVTKN:
                     mylog.error("sqlca.sqlcode = SQLF_RC_INVTKN invalid token parameter, returning")
                     #self.TextTestResult.addFailure(self.TextTestResult, sys.exc_info())
                     return -1
 
-                if sqlca.sqlcode == -1297:
+                if _sqlca.sqlcode == -1297:
                     mylog.error("sqlcode -1297")
                     return -1
 
-                if sqlca.sqlstate == "08003":
+                if _sqlca.sqlstate == "08003":
                     mylog.error("sqlstate = 08003 SQL_CONN_DOES_NOT_EXIT")
 
-                if sqlca.sqlcode == db2_clu_constants.SQLF_WARNING_BUFFPAGE:
+                if _sqlca.sqlcode == db2_clu_constants.SQLF_WARNING_BUFFPAGE:
                     mylog.warning("SQLF_WARNING_BUFFPAGE buffpage (SQLF_DBTN_BUFF_PAGE) may be ignored ")
 
         except AttributeError as e:
@@ -353,25 +368,33 @@ class GetSetDBCfg(Common_Class):
         mylog.info("done")
         return 0
 
-    def getdbcfg(self):
-        """get db cfg parameters
+    def getdbcfg(self, instance_memory):
+        """get/set db cfg parameters
         """
-        mylog.info("CLI functions db2CfgGet, db2CfgSet")
+        mylog.info("CLI functions db2CfgGet, db2CfgSet instance_memory %d" % instance_memory)
 
         self.setParameters_getdbcfg()
 
         cfgStruct            = db2Cfg()
         cfgStruct.numItems   = 20
-        cfgStruct.paramArray = self.cfgParameters #cast(struct_db2CfgParam,POINTER_T(cfgParameters))
+        cfgStruct.paramArray = self.cfgParameters
         cfgStruct.flags      = db2CfgDatabase | db2CfgDelayed
         cfgStruct.dbName     = self.mDb2_Cli.dbAlias
-        sqlca = struct_sqlca()
+        _sqlca = sqlca()
         self.setDB2Version()
 
-        def add_row(row_list):
-            if len(row_list) < 3:
-                row_list.append(0)
+        def add_row4(column0, value, index):
+            add_row( [column0, self.mDb2_Cli.human_format(value *4 * 1024), self.cfgParameters[index].flags])
 
+
+        def add_row(row_list):
+
+            if row_list[2] == 1:
+                row_list[2] = "1=db2CfgParamAutomatic"
+            elif row_list[2] == 2:
+                row_list[2] = "2=db2CfgParamComputed"
+            elif row_list[2] == 16:
+                row_list[2] = "16=db2CfgParamManual"
             table.add_row(row_list)
 
         try:
@@ -379,12 +402,12 @@ class GetSetDBCfg(Common_Class):
             if rc != SQL_RC_OK:
                 mylog.error("InstanceAttach rc = %d " % rc)
 
-            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(sqlca))
+            rc = self.mDb2_Cli.libcli64.db2CfgGet(self.db2Version, byref(cfgStruct), byref(_sqlca))
             if rc != SQL_RC_OK:
                 mylog.error("db2CfgGet rc = '%d' " % rc)
-                self.get_sqlca_errormsg(sqlca)
+                self.get_sqlca_errormsg(_sqlca)
             else:
-                if sqlca.sqlcode != SQL_RC_OK:
+                if _sqlca.sqlcode != SQL_RC_OK:
                     if sqlca.sqlstate == "08003" : #C:\Program Files\IBM\SQLLIB\include\sqlstate.h
                         mylog.error("sqlstate = 08003 SQL_CONN_DOES_NOT_EXIT") 
                         return
@@ -396,35 +419,35 @@ class GetSetDBCfg(Common_Class):
 
             table = Texttable()
             table.set_deco(Texttable.HEADER)
-            table.set_cols_dtype(['t', 't', 't'])  # text])
+            table.set_cols_dtype(['t', 't', 't'])
             table.set_cols_align(['l', 'r', 'l'])
             table.set_header_align(['l', 'r', 'l'])
 
             table.header(["db cfg token", " value", "flag" ])
 
             add_row( ["SQLF_DBTN_LOGPATH",                       cast (self.cfgParameters[0].ptrvalue , c_char_p).value, self.cfgParameters[0].flags])
-            add_row( ["SQLF_DBTN_MAXAPPLS",                      self.max_appls.value])
-            add_row( ["SQLF_DBTN_MAXFILOP",                      self.max_file_op.value])
-            add_row( ["SQLF_DBTN_DB_HEAP",                       self.mDb2_Cli.human_format(self.max_db_heap.value *4 * 1024), self.cfgParameters[3].flags])
-            add_row( ["SQLF_DBTN_LOGFIL_SIZ log file size",      self.mDb2_Cli.human_format(self.max_logfile_siz.value *4 *1024 ) ])
-            add_row( ["SQLF_DBTN_DATABASE_MEMORY database_memory", self.mDb2_Cli.human_format(self.max_database_memory.value * 4 * 1024), self.cfgParameters[5].flags])
-            add_row( ["SQLF_DBTN_LOGARCHMETH1",                    cast (self.cfgParameters[6].ptrvalue , c_char_p).value])
-            add_row( ["SQLF_DBTN_LOGARCHMETH2",                    cast (self.cfgParameters[7].ptrvalue , c_char_p).value])
-            add_row( ["SQLF_DBTN_LOGARCHCOMPR1",                   self.log_arch1_compress.value  ])
-            add_row( ["SQLF_DBTN_CF_GBP_SZ    group_buffer_pool_size",      self.mDb2_Cli.human_format(self.group_buffer_pool_size.value *4 * 1024)])
-            add_row( ["SQLF_DBTN_CF_LOCK_SZ   global_lock_memory_size",     self.mDb2_Cli.human_format(self.global_lock_memory_size.value *4 * 1024)])
-            add_row( ["SQLF_DBTN_CF_SCA_SZ    shared_comm_area_size",       self.mDb2_Cli.human_format(self.shared_comm_area_size.value *4 * 1024)])
-            add_row( ["SQLF_DBTN_CF_DB_MEM_SZ  cluster caching facili mem size",  self.mDb2_Cli.human_format(self.database_mem_size.value *4 * 1024)])
-            add_row( ["SQLF_DBTN_APPL_MEMORY",                   self.mDb2_Cli.human_format(self.appl_memory.value *4 * 1024), self.cfgParameters[13].flags])
-            add_row( ["SQLF_DBTN_SELF_TUNING_MEM",               self.self_tunning_memory.value])
-            add_row( ["SQLF_DBTN_APPLHEAPSZ",                    self.mDb2_Cli.human_format(self.appl_heap_size.value *4 * 1024), self.cfgParameters[15].flags])
-            add_row( ["SQLF_DBTN_UTIL_HEAP_SZ",                  self.mDb2_Cli.human_format(self.util_heap_size.value *4 * 1024), self.cfgParameters[18].flags])
-            add_row( ["SQLF_DBTN_LOGBUFSZ",                      self.mDb2_Cli.human_format(self.log_buf_size.value *4 * 1024), self.cfgParameters[16].flags])
-            add_row( ["SQLF_DBTN_BUFF_PAGE    Buffer Pool Size", self.mDb2_Cli.human_format(self.buffer_pool_size.value *4 * 1024), self.cfgParameters[17].flags])
-            add_row( ["SQLF_DBTN_LOG_DDL_STMTS log_ddl_stmts",   self.log_ddl_stmts.value])
+            add_row( ["SQLF_DBTN_MAXAPPLS",                      self.max_appls.value, self.cfgParameters[1].flags])
+            add_row( ["SQLF_DBTN_MAXFILOP",                      self.max_file_op.value, self.cfgParameters[2].flags])
+            add_row4( "SQLF_DBTN_DB_HEAP", self.max_db_heap.value, 3)
+            add_row4( "SQLF_DBTN_LOGFIL_SIZ log file size", self.max_logfile_siz.value, 4)
+            add_row4( "SQLF_DBTN_DATABASE_MEMORY database_memory", self.max_database_memory.value, 5)
+            add_row( ["SQLF_DBTN_LOGARCHMETH1",                    cast (self.cfgParameters[6].ptrvalue , c_char_p).value, self.cfgParameters[6].flags])
+            add_row( ["SQLF_DBTN_LOGARCHMETH2",                    cast (self.cfgParameters[7].ptrvalue , c_char_p).value, self.cfgParameters[7].flags])
+            add_row( ["SQLF_DBTN_LOGARCHCOMPR1",                   self.log_arch1_compress.value, self.cfgParameters[8].flags ])
+            add_row4( "SQLF_DBTN_CF_GBP_SZ    group_buffer_pool_size",      self.group_buffer_pool_size.value, 9)
+            add_row4( "SQLF_DBTN_CF_LOCK_SZ   global_lock_memory_size",     self.global_lock_memory_size.value, 10)
+            add_row4( "SQLF_DBTN_CF_SCA_SZ    shared_comm_area_size",       self.shared_comm_area_size.value , 11)
+            add_row4( "SQLF_DBTN_CF_DB_MEM_SZ  cluster caching facili mem size",  self.database_mem_size.value , 12)
+            add_row4( "SQLF_DBTN_APPL_MEMORY", self.appl_memory.value, 13)
+            add_row( ["SQLF_DBTN_SELF_TUNING_MEM",               self.self_tunning_memory.value, self.cfgParameters[14].flags])
+            add_row4( "SQLF_DBTN_APPLHEAPSZ", self.appl_heap_size.value, 15)
+            add_row4( "SQLF_DBTN_UTIL_HEAP_SZ", self.util_heap_size.value, 18)
+            add_row4( "SQLF_DBTN_LOGBUFSZ", self.log_buf_size.value, 16)
+            add_row4( "SQLF_DBTN_BUFF_PAGE    Buffer Pool Size", self.buffer_pool_size.value, 17)
+            add_row( ["SQLF_DBTN_LOG_DDL_STMTS log_ddl_stmts",   self.log_ddl_stmts.value, self.cfgParameters[18].flags])
 
             biggest_len = len(cast (self.cfgParameters[0].ptrvalue , c_char_p).value)
-            table.set_cols_width([55, biggest_len+5, 10])
+            table.set_cols_width([55, biggest_len+5, 25])
             # from ctypes import sizeof
             # mylog.info("self.cfgParameters[0]. %s" % len(cast (self.cfgParameters[0].ptrvalue , c_char_p).value)) 
             mylog.info("\n%s\n" % table.draw())
