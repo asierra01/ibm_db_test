@@ -110,7 +110,8 @@ if platform.system() == "Windows":
                     # "-O3",
                     "/favor:AMD64",
                     "/w",  # no warnings
-                    "-D_CRT_SECURE_NO_WARNINGS."]
+                    "-D_CRT_SECURE_NO_WARNINGS",
+                    "-DSPCLIENT_PYTHON"]
 
 
 else:
@@ -143,6 +144,7 @@ else:
                           # "-Wimplicit-function-declaration",
                           # "-I/usr/local/include",
                           # "-I%s/samples/cli" % DB2PATH,
+                          "-DSPCLIENT_PYTHON",
                           "-I%s" % include_path]
  
 if sys.version_info > (3,):

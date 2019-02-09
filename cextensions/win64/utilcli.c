@@ -83,12 +83,20 @@ int HandleInfoPrint(SQLSMALLINT htype, /* handle type identifier */
       rc = 0;
       break;
     case SQL_INVALID_HANDLE:
+#ifdef SPCLIENT_PYTHON
+      print_mylog_info_format("\n-CLI INVALID HANDLE-----\n");
+#else
       printf("\n-CLI INVALID HANDLE-----\n");
+#endif
       HandleLocationPrint(cliRC, line, file);
       rc = 1;
       break;
     case SQL_ERROR:
+#ifdef SPCLIENT_PYTHON
+      print_mylog_info_format("\n--CLI ERROR--------------\n");
+#else
       printf("\n--CLI ERROR--------------\n");
+#endif
       HandleLocationPrint(cliRC, line, file);
       HandleDiagnosticsPrint(htype, hndl);
       rc = 2;
@@ -106,8 +114,12 @@ int HandleInfoPrint(SQLSMALLINT htype, /* handle type identifier */
       rc = 0;
       break;
     default:
-      printf("\n--default----------------\n");
-      HandleLocationPrint(cliRC, line, file);
+#ifdef SPCLIENT_PYTHON
+        print_mylog_info_format("\n--default----------------\n");
+#else
+        printf("\n--default----------------\n");
+#endif
+        HandleLocationPrint(cliRC, line, file);
       rc = 3;
       break;
   }
@@ -117,9 +129,13 @@ int HandleInfoPrint(SQLSMALLINT htype, /* handle type identifier */
 
 void HandleLocationPrint(SQLRETURN cliRC, int line, char *file)
 {
+#ifdef SPCLIENT_PYTHON
+      print_mylog_info_format("\ncliRC = %d\nline  = %d\nfile  = %s\n", cliRC, line, file);
+#else
   printf("  cliRC = %d\n", cliRC);
   printf("  line  = %d\n", line);
   printf("  file  = %s\n", file);
+#endif
 } /* HandleLocationPrint */
 
 void HandleDiagnosticsPrint(SQLSMALLINT htype, /* handle type identifier */
@@ -142,9 +158,13 @@ void HandleDiagnosticsPrint(SQLSMALLINT htype, /* handle type identifier */
                        SQL_MAX_MESSAGE_LENGTH + 1,
                        &length) == SQL_SUCCESS)
   {
+#ifdef SPCLIENT_PYTHON
+    print_mylog_info_format("\nSQLSTATE          = %s\nNative Error Code = %d\n%s\n", sqlstate, sqlcode, message);
+#else
     printf("\n  SQLSTATE          = %s\n", sqlstate);
     printf("  Native Error Code = %d\n", sqlcode);
     printf("%s\n", message);
+#endif
     i++;
   }
 

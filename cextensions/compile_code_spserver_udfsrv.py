@@ -6,8 +6,8 @@ import shutil
 import subprocess
 import sys
 import pprint
+import time
 from texttable import Texttable
-import logging.handlers
 from distutils.sysconfig import get_python_inc
 #from distutils.sysconfig import get_python_lib
 import sysconfig
@@ -395,34 +395,46 @@ def build_windows(code, DB2PATH):
     loc1 = os.path.join("%s"  % vs_location, "VC", "vcvarsall.bat")
     loc2 = os.path.join("%s"  % vs_location, "VC", "Auxiliary", "Build","vcvars64.bat")
     if os.path.exists(loc1):
-        my_command1 = '"'+loc1+'"' + " amd64"
+        my_command1 = '"'+loc1+'"' + " amd64\n"
     elif os.path.exists(loc2):
-        my_command1 = '"'+loc2+'"'
+        my_command1 = '"'+loc2+'"\n'
     else:
         mylog.error("cant find vcvars64 in \n %s or \n %s" % (loc1, loc2))
         sys.exit(0)
 
     DB2PATH = win32api.GetShortPathName(DB2PATH)
-    p3_out = None
     #/showIncludes 
     cwd = os.getcwd()
     win64_path = os.path.join(cwd, "win64")
-    my_command2 = "cl -Zi -Od -c -W2 -DWIN32 /GS- -MD \"-I%s\include\" \"-I%s\" /Fo%s\%s.obj /Tc%s\%s.c " % (
+    my_command2 = "cl -Zi -Od -c -W2 -DWIN32 /GS- -MD \"-I%s\include\" \"-I%s\" /Fo%s\%s.obj /Tc%s\%s.c  /Fd%s.PDB \n" % (
        DB2PATH,
        get_python_inc(),
        win64_path,
        code,
        win64_path,
+       code,
        code)
-    mylog.info("executing '%s'" % my_command1 + " & "+my_command2)
 
-    p4 = subprocess.Popen(my_command1 + " & "+my_command2,
-                          stdin=p3_out,
+    if sys.version_info[0] >= 3:
+        pass
+        #my_command1 =  bytes(my_command1, 'utf-8')
+        #my_command2 =  bytes(my_command2, 'utf-8')
+
+    mylog.info("executing \n'%s'" % (my_command1))
+
+    p4 = subprocess.Popen("cmd.exe",
+                          bufsize=2000,
+                          stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
-                          shell=True)
-    (out, _err) = p4.communicate()
-
+                          shell=False,
+                          universal_newlines=True)
+    p4.stdin.write(my_command1)
+    time.sleep(0.3)
+    p4.stdin.write(my_command2)
+    out = []
+    
+    error = ": error"
     if isinstance(out, str):
         error = ": error"
     elif isinstance(out, bytes):
@@ -436,9 +448,6 @@ out       '%s'
 """ % (code, my_command2, out))
         #sys.exit(0)
 
-    if isinstance(_err, bytes):
-        _err = _err.decode("utf-8")
-    mylog.info("\n%s\n" % _err)
 
     if isinstance(out, bytes):
         out = out.decode("utf-8")
@@ -450,33 +459,51 @@ my_command2 '%s'
 out         '%s'
 """ % (code, my_command1, my_command2, out))
     if code in ["utilcli", "ini"]: # we compile utilcli.c, ini.c we dont link it
+        mylog.info("code '%s'" % code)
         return
     python_lib_path = "/LIBPATH:%s" % os.path.join(sys.exec_prefix, 'libs')
     db2_lib_path    = "/LIBPATH:%s" % os.path.join(DB2PATH, 'lib')
-    my_command3 = r"link  -dll {python_lib_path}  {db2_lib_path} -out:{win64_path}\{code}.dll {win64_path}\{code}.obj {win64_path}\utilcli.obj  db2api.lib  -def:{win64_path}\{code}.def".format(
+    my_command3 = "link  -dll {python_lib_path}  {db2_lib_path} -out:{win64_path}\\{code}.dll {win64_path}\\{code}.obj {win64_path}\\utilcli.obj  db2api.lib legacy_stdio_definitions.lib -def:{win64_path}\\{code}.def\n".format(
        python_lib_path=python_lib_path, 
        db2_lib_path=db2_lib_path,
        win64_path=win64_path, 
        code=code)
 
-    try:
-        mylog.info("""
+    mylog.debug("""
 my_command3 '%s'
 """ % my_command3)
-        p5 = subprocess.Popen(my_command3, 
-                          stdin=p4.stdout,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE,
-                          shell=True)
 
-        (out, _err) = p5.communicate()
-    except ValueError as e:
-        mylog.error("ValueError '%s'" % e)
+    time.sleep(1)
+    
+    mylog.info("executing command3")
+    p4.stdin.write(my_command3)
+    time.sleep(1)
+    p4.stdin.close()
+    one_longline = ""
+    try:
+        for line in p4.stdout.readlines():
+            line = line.strip("\n").strip()
+            #if line.strip() != "":
+            one_longline += line
+            one_longline += "\n"
+    except KeyboardInterrupt as _e:
+        mylog.warn("KeyboardInterrupt")
+        raise
+    mylog.info("\n\n%s" % one_longline)
+
 
     #mylog.info("%s %s" % (type(out), out))
+    if isinstance(one_longline, str):
+        error = ": error"
+    elif isinstance(one_longline, bytes):
+        error = b": error"
 
-    if error in out:
-        mylog.error("compiling %s\n%s\n%s" % (code, my_command1, out))
+    if error in one_longline:
+        mylog.error("""
+compiling   %s
+my_command1 %s
+out         %s
+""" % (code, my_command1, one_longline))
         sys.exit(0)
     #if EXIST %1.dll.manifest MT -manifest %1.dll.manifest -outputresource:%1.dll;#2
 
@@ -671,5 +698,5 @@ def main():
 
 
 if __name__ == "__main__":
-   main()
+    main()
 

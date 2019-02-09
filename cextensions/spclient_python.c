@@ -179,7 +179,6 @@ static PyObject *SpClientError; // Creating a new exception
     char * str_format = (char *)"(s)";
     //char * str_format = (char *)"(u)";
 #endif
-static struct _ibm_db_globals *ibm_db_globals;
 
 ///////////////////////from ctypes.c
 typedef struct _ffi_type
@@ -233,7 +232,6 @@ static PyObject* python_get_hdbc_handle_ibm_db(PyObject* self, PyObject* args)
         PyErr_Format(PyExc_ValueError, "parameters count must be two  ibm_db.IBM_DBStatement, mylog.info '%s'", "yes two parameters");
         return NULL;
     }
-    //printf("hello py_stmt_res type '%s'\n", Py_TYPE(py_stmt_res)->tp_name); // 'ibm_db.IBM_DBStatement'  This is just to prove I got this far
     if (strcmp(Py_TYPE(py_stmt_res)->tp_name, "ibm_db.IBM_DBStatement") != 0)
     {
         PyErr_Format( PyExc_TypeError,
@@ -247,7 +245,7 @@ static PyObject* python_get_hdbc_handle_ibm_db(PyObject* self, PyObject* args)
 
     print_mylog_info_format("%d %s() hello hdbc value  '%ld' '0x%p'", __LINE__, __FUNCTION__, hdbc, hdbc);
 
-    return PyLong_FromLong(hdbc);
+    return PyLong_FromVoidPtr(hdbc);
  
 }
 
@@ -268,7 +266,7 @@ static PyObject* python_get_stmt_handle_ibm_db(PyObject* self, PyObject* args)
         PyErr_Format(PyExc_ValueError, "parameters count must be two  ibm_db.IBM_DBStatement, mylog.info '%s'", "yes two parameters");
         return NULL;
     }
-    //printf("hello py_stmt_res type '%s'\n", Py_TYPE(py_stmt_res)->tp_name); // 'ibm_db.IBM_DBStatement'  This is just to prove I got this far
+
     if (strcmp(Py_TYPE(py_stmt_res)->tp_name, "ibm_db.IBM_DBStatement") != 0)
     {
         PyErr_Format( PyExc_TypeError,
@@ -278,34 +276,21 @@ static PyObject* python_get_stmt_handle_ibm_db(PyObject* self, PyObject* args)
     }
     else
         stmt_res = (stmt_handle *)py_stmt_res;
-    // too much logging
-//#ifdef MS_WIN32
     hstmt = stmt_res->hstmt;
-    print_mylog_info_format("%d %s() hello hstmt value  '%ld' '%p' size %d long %d SQLHSTMT %d",
-    		__LINE__,
-			__FUNCTION__,
-			hstmt,
-			hstmt,
-			sizeof(hstmt),
-			sizeof(long),
-			sizeof(SQLHSTMT));
-    return PyLong_FromLong(hstmt);//PyInt_FromLong(hstmt);
+    /* too much logging
+    print_mylog_info_format("%d %s() hstmt value  '%ld' '%p' sizeof(hstmt) %d sizeof(long) %d sizeof(SQLHSTMT) %d",
+            __LINE__,
+            __FUNCTION__,
+            hstmt,
+            hstmt,
+            sizeof(hstmt),
+            sizeof(long),
+            sizeof(SQLHSTMT));
+    */
+    return PyLong_FromVoidPtr(hstmt); //PyLong_FromLong(hstmt);//PyInt_FromLong(hstmt);
 
-//#else
-//    hstmt = stmt_res->hstmt;
-//    print_mylog_info_format("%d %s() hello hstmt value  '%ld' '%p' size %d long %d SQLHSTMT %d",
-//    		__LINE__,
-//			__FUNCTION__,
-//			hstmt,
-//			hstmt,
-//			sizeof(hstmt),
-//			sizeof(long),
-//			sizeof(SQLHSTMT));
-//   return PyLong_FromLong(hstmt);
-//#endif
 
 }
-
 
 
 /*  wrapped python_run_the_test_ibm_db function but now consuming ibm_db.IBM_DBConnection */
@@ -330,7 +315,7 @@ static PyObject* python_run_the_test_ibm_db(PyObject* self, PyObject* args)
         PyErr_Format(PyExc_ValueError, "parameters count must be two  ibm_db.IBM_DBConnection, mylog.info '%s'", "yes two parameters");
         return NULL;
     }
-    printf("hello py_conn_res type '%s'\n", Py_TYPE(py_conn_res)->tp_name); // 'ibm_db.IBM_DBConnection'  This is just to prove I got this far
+
     if (strcmp(Py_TYPE(py_conn_res)->tp_name, "ibm_db.IBM_DBConnection") != 0)
     {
         PyErr_Format( PyExc_TypeError,
@@ -340,15 +325,13 @@ static PyObject* python_run_the_test_ibm_db(PyObject* self, PyObject* args)
     }
     else
         conn_res = (conn_handle *)py_conn_res;
+
     henv = conn_res->henv;
     hdbc = conn_res->hdbc;
 
-    //printf("henv %p\n", henv);
-    //mylog_info = mylog.info python function
 
     print_mylog_info_format("%d %s() hello henv value  '%ld' hdbc value  '%ld'", __LINE__, __FUNCTION__, henv, hdbc);
 
-    //Py_RETURN_NONE;
 
     rc = run_the_test(henv, hdbc);
     Py_RETURN_NONE;
@@ -449,8 +432,6 @@ static PyObject* python_call_get_db_size(PyObject* self, PyObject* args)
     Py_XDECREF(pyresult);
 
     Py_XDECREF(pyFunction);
-    //py_out_DATABASESIZE     = PyLong_FromLongLong(out_DATABASESIZE);
-    //py_out_DATABASECAPACITY = PyLong_FromLongLong(out_DATABASECAPACITY);
 
     py_mylist = Py_BuildValue("[LL]", out_DATABASESIZE, out_DATABASECAPACITY); // L as long long = int64 = SQLBIGINT
     return py_mylist;
@@ -458,22 +439,22 @@ static PyObject* python_call_get_db_size(PyObject* self, PyObject* args)
 }
 
 int get_db_size(
-        SQLHANDLE henv,
-        SQLHANDLE hdbc,
-        SQLBIGINT    *out_DATABASESIZE,
-        SQLBIGINT    *out_DATABASECAPACITY,
-        SQL_TIMESTAMP_STRUCT *out_snapshottimestamp)
+SQLHANDLE henv,
+SQLHANDLE hdbc,
+SQLBIGINT    *out_DATABASESIZE,
+SQLBIGINT    *out_DATABASECAPACITY,
+SQL_TIMESTAMP_STRUCT *out_snapshottimestamp)
 {
-  SQLRETURN cliRC = SQL_SUCCESS;
-  int rc = 0;
-  SQLHANDLE hstmt; /* statement handle */
+  SQLRETURN    cliRC = SQL_SUCCESS;
+  int          rc    = 0;
+  SQLHANDLE    hstmt; /* statement handle */
   SQLINTEGER   in_out_REFRESHWINDOW = 0;
   SQLINTEGER   len_out_snapshottimestamp = 0;
 
   char procName[] = "GET_DBSIZE_INFO";
   SQLCHAR *stmt = (SQLCHAR *)"CALL GET_DBSIZE_INFO (?, ?, ?, ?)";
 
-  print_mylog_info_format("CALL stored procedure: %s", procName);
+  print_mylog_info_format("CALL stored procedure: '%s'", procName);
 
   /* allocate a statement handle */
   cliRC = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
@@ -564,8 +545,8 @@ int get_db_size(
 } /* end get_db_size */
 
 
-/*  wrapped python_run_the_test_Only_Windows function */
-static PyObject* python_run_the_test_Only_Windows(PyObject* self, PyObject* args)
+/*  wrapped python_run_the_test_only_windows function */
+static PyObject* python_run_the_test_only_windows(PyObject* self, PyObject* args)
 {
     int rc;
     PyCArgObject *p1;
@@ -578,7 +559,7 @@ static PyObject* python_run_the_test_Only_Windows(PyObject* self, PyObject* args
         hdbc         = ctypes.c_void_p(None) # communication handle
         hstmt        = ctypes.c_void_p(None) # statement handle
 
-        possible Python call : python_run_the_test_Only_Windows(
+        possible Python call : python_run_the_test_only_windows(
                                                       ctypes.byref(henv),
                                                       ctypes.byref(hdbc),
                                                       mylog.info)
@@ -662,20 +643,22 @@ static PyObject* python_run_the_test(PyObject* self, PyObject* args)
     }
     //printf("hello p1 type '%s'\n", Py_TYPE(p1)->tp_name);// This is just to prove I got this far
 #ifdef MS_WIN32
+    /*
     if (strcmp(Py_TYPE(p1)->tp_name, "long") != 0)
     {
          printf("parameter must be long not '%s'", Py_TYPE(p1)->tp_name);
-         PyErr_Format(PyExc_TypeError, "parameter must be long not '%s'", Py_TYPE(p1)->tp_name);
+         PyErr_Format(PyExc_TypeError, "parameter must be long not '%s' %d %s()", Py_TYPE(p1)->tp_name, __LINE__, __FUNCTION__);
          return NULL;
     }
     if (strcmp(Py_TYPE(p2)->tp_name, "long") != 0)
     {
         printf("parameter must be long not '%s'", Py_TYPE(p1)->tp_name);
-        PyErr_Format(PyExc_TypeError, "parameter must be long not '%s'", Py_TYPE(p2)->tp_name);
+        PyErr_Format(PyExc_TypeError, "parameter must be long not '%s' %d %s()", Py_TYPE(p2)->tp_name, __LINE__, __FUNCTION__);
         return NULL;
     }
-    henv = (SQLHANDLE)PyLong_AsLong(p1);
-    hdbc = (SQLHANDLE)PyLong_AsLong(p2);
+    */
+    henv = (SQLHANDLE)PyLong_AsVoidPtr(p1);  //(SQLHANDLE)PyLong_AsLong(p1);
+    hdbc = (SQLHANDLE)PyLong_AsVoidPtr(p2);  //(SQLHANDLE)PyLong_AsLong(p2);
 #else
     if (strcmp(Py_TYPE(p1)->tp_name, "int") != 0)
     {
@@ -738,7 +721,7 @@ static PyMethodDef spclient_python_Methods[] =
      {"python_run_the_test", (PyCFunction)python_run_the_test, METH_VARARGS,
       "hello this is my python_run_the_test python_run_the_test(henv, hdbc, mylog.info) doc"},
 
-     {"python_run_the_test_only_windows", (PyCFunction)python_run_the_test_Only_Windows, METH_VARARGS,
+     {"python_run_the_test_only_windows", (PyCFunction)python_run_the_test_only_windows, METH_VARARGS,
       "hello this is my python_run_the_test_only_windows(byref(henv), byref(hdbc), mylog.info) doc"},
 
      {"python_run_the_test_ibm_db", (PyCFunction)python_run_the_test_ibm_db, METH_VARARGS,
@@ -842,11 +825,17 @@ int run_the_test(SQLHANDLE henv, SQLHANDLE hdbc)
   * call OUT_PARAM stored procedure                        *
   \********************************************************/
   rc = callOutParameter(hdbc, &medSalary);
+  if (rc != SQL_SUCCESS)
+      Py_RETURN_NONE;
 
   /********************************************************\
   * call IN_PARAMS stored procedure                        *
   \********************************************************/
   rc = callInParameters(hdbc);
+  if (rc != SQL_SUCCESS)
+  {
+      print_mylog_info_format("calling callInParameters failed");
+  }
 
   /********************************************************\
   * call INOUT_PARAM stored procedure                      *
@@ -857,6 +846,8 @@ int run_the_test(SQLHANDLE henv, SQLHANDLE hdbc)
   print_mylog_info_format("CALL stored procedure INOUT_PARAM ");
   print_mylog_info_format("using the median returned by the call to OUT_PARAM");
   rc = callInoutParameter(hdbc, medSalary);
+  //if (rc != SQL_SUCCESS)
+  //    Py_RETURN_NONE;
 
   /********************************************************\
   * call INOUT_PARAM stored procedure again twice in order *
@@ -870,6 +861,8 @@ int run_the_test(SQLHANDLE henv, SQLHANDLE hdbc)
   print_mylog_info_format("using a NULL input value");
   print_mylog_info_format("-- The following error report is expected! --");
   rc = callInoutParameter(hdbc, -99999);
+  //if (rc != SQL_SUCCESS) //error expected
+  //    Py_RETURN_NONE;
 
 
   
@@ -878,11 +871,15 @@ int run_the_test(SQLHANDLE henv, SQLHANDLE hdbc)
          "stored procedure");
   print_mylog_info_format("-- The following error report is expected! --");
   rc = callInoutParameter(hdbc, 99999.99);
+  //if (rc != SQL_SUCCESS)
+  //    Py_RETURN_NONE;
 
   //********************************************************\
   //* call CLOB_EXTRACT stored procedure                     *
   //\******************************************************* 
   rc = callClobExtract(hdbc);
+  //if (rc != SQL_SUCCESS)
+  //    Py_RETURN_NONE;
 
   if (strncmp(language, "C", 1) != 0)
   {
@@ -923,11 +920,15 @@ int run_the_test(SQLHANDLE henv, SQLHANDLE hdbc)
   * call ALL_DATA_TYPES stored procedure                   *
   \********************************************************/
   rc = callAllDataTypes(hdbc);
+  if (rc != SQL_SUCCESS)
+      Py_RETURN_NONE;
 
   /********************************************************\
   * call ONE_RESULT_SET stored procedure                   *
   \********************************************************/
   rc = callOneResultSet(hdbc, medSalary);
+  if (rc != SQL_SUCCESS)
+      Py_RETURN_NONE;
 
   /********************************************************\
   * call TWO_RESULT_SETS stored procedure                  *
@@ -938,11 +939,15 @@ int run_the_test(SQLHANDLE henv, SQLHANDLE hdbc)
   * call GENERAL_EXAMPLE stored procedure                  *
   \********************************************************/
   rc = callGeneralExample(hdbc, 16);
+  if (rc != SQL_SUCCESS)
+      Py_RETURN_NONE;
 
   /********************************************************\
   * call GENERAL_WITH_NULLS_EXAMPLE stored procedure       *
   \********************************************************/
   rc = callGeneralWithNullsExample(hdbc, 2);
+  if (rc != SQL_SUCCESS)
+      Py_RETURN_NONE;
 
   /********************************************************\
   * call GENERAL_WITH_NULLS_EXAMPLE stored procedure again *
@@ -1014,7 +1019,7 @@ int callOutLanguage(SQLHANDLE hdbc, char *outLanguage)
   print_mylog_info_format("Stored procedure returned successfully.");
 
   /* display the language of the stored procedures */
-  print_mylog_info_format("Stored procedures are implemented in LANGUAGE: %s", outLanguage);
+  print_mylog_info_format("Stored procedures are implemented in LANGUAGE: '%s'", outLanguage);
 
   /* free the statement handle */
   cliRC = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
@@ -1030,6 +1035,7 @@ int callOutParameter(SQLHANDLE hdbc, double *pOutMedSalary)
   int rc = 0;
   SQLHANDLE hstmt; /* statement handle */
   SQLINTEGER outSqlrc;
+  SQLLEN param_len=0;
   char outMsg[33];
   char procName[] = "OUT_PARAM";
   SQLCHAR *stmt = (SQLCHAR *)"CALL OUT_PARAM (?)";
@@ -1053,8 +1059,8 @@ int callOutParameter(SQLHANDLE hdbc, double *pOutMedSalary)
                            0,
                            0,
                            pOutMedSalary,
-                           0,
-                           NULL);
+                           sizeof(*pOutMedSalary),
+                           &param_len);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* execute the statement */
@@ -1296,6 +1302,8 @@ int callClobExtract(SQLHANDLE hdbc)
   SQLRETURN cliRC = SQL_SUCCESS;
   int rc = 0;
   SQLHANDLE hstmt;
+  SQLLEN out_len_1=0;
+  SQLLEN out_len_2=0;
   char procName[] = "CLOB_EXTRACT";
   SQLCHAR stmt[] = "CALL CLOB_EXTRACT (?, ?)";
   char inEmpNumber[7];
@@ -1322,7 +1330,7 @@ int callClobExtract(SQLHANDLE hdbc)
                            0,
                            inEmpNumber,
                            7,
-                           NULL);
+                           &out_len_1);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 2 to the statement */
@@ -1335,7 +1343,7 @@ int callClobExtract(SQLHANDLE hdbc)
                            0,
                            outDeptInfo,
                            1001,
-                           NULL);
+                           &out_len_2);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* execute the statement */
@@ -1362,6 +1370,10 @@ int callDBINFO(SQLHANDLE hdbc)
   int rc = 0;
   SQLHANDLE hstmt; /* statement handle */
   SQLINTEGER outSqlrc;
+  SQLLEN out_len_1=0;
+  SQLLEN out_len_2=0;
+  SQLLEN out_len_3=0;
+  SQLLEN out_len_4=0;
   char procName[] = "DBINFO_EXAMPLE";
   SQLCHAR *stmt = (SQLCHAR *)"CALL DBINFO_EXAMPLE (?, ?, ?, ?)";
   SQLCHAR inJob[9] = {0};
@@ -1395,7 +1407,7 @@ int callDBINFO(SQLHANDLE hdbc)
                            0,
                            inJob,
                            9,
-                           NULL);
+                           &out_len_1);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 2 to the statement */
@@ -1408,7 +1420,7 @@ int callDBINFO(SQLHANDLE hdbc)
                            0,
                            &outSalary,
                            0,
-                           NULL);
+                           &out_len_2);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 3 to the statement */
@@ -1421,7 +1433,7 @@ int callDBINFO(SQLHANDLE hdbc)
                            0,
                            outDbname,
                            129,
-                           NULL);
+                           &out_len_3);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 4 to the statement */
@@ -1434,7 +1446,7 @@ int callDBINFO(SQLHANDLE hdbc)
                            0,
                            (char *)outDbVersion,
                            9,
-                           NULL);
+                           &out_len_4);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* execute the statement */
@@ -1464,6 +1476,8 @@ int callProgramTypeMain(SQLHANDLE hdbc)
   SQLCHAR *stmt = (SQLCHAR *)"CALL MAIN_EXAMPLE (?, ?)";
   SQLCHAR inJob[9];
   SQLDOUBLE outSalary;
+  SQLLEN out_param1=0;
+  SQLLEN out_param2=0;
 
   strcpy((char *)inJob, "DESIGNER");
   print_mylog_info_format("CALL stored procedure: %s", procName);
@@ -1486,7 +1500,7 @@ int callProgramTypeMain(SQLHANDLE hdbc)
                            0,
                            inJob,
                            9,
-                           NULL);
+                           &out_param1);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 2 to the statement */
@@ -1499,7 +1513,7 @@ int callProgramTypeMain(SQLHANDLE hdbc)
                            0,
                            &outSalary,
                            0,
-                           NULL);
+                           &out_param2);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   
@@ -1537,7 +1551,17 @@ int callAllDataTypes(SQLHANDLE hdbc)
   SQLCHAR outVarchar[13]= {0};
   SQLCHAR outDate[20] = {0};
   SQLCHAR outTime[9] = {0};
-  SQLINTEGER out_indicator_Date=0;
+  SQLINTEGER out_indicator_Date=20;
+  SQLLEN out_param1=0;
+  SQLLEN out_param2=0;
+  SQLLEN out_param3=0;
+  SQLLEN out_param4=0;
+  SQLLEN out_param5=0;
+  SQLLEN out_param6=0;
+  SQLLEN out_param7=0;
+  SQLLEN out_param8=0;
+  SQLLEN out_param9=0;
+  SQLLEN out_param10=0;
 
   inoutSmallint = 32000;
   inoutInteger = 2147483000;
@@ -1566,7 +1590,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            &inoutSmallint,
                            0,
-                           NULL);
+                           &out_param1);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 2 to the statement */
@@ -1579,7 +1603,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            &inoutInteger,
                            0,
-                           NULL);
+                           &out_param2);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 3 to the statement */
@@ -1592,7 +1616,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            &inoutBigint,
                            0,
-                           NULL);
+                           &out_param3);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 4 to the statement */
@@ -1605,7 +1629,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            &inoutReal,
                            0,
-                           NULL);
+                           &out_param4);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 5 to the statement */
@@ -1618,7 +1642,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            &inoutDouble,
                            0,
-                           NULL);
+                           &out_param5);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 6 to the statement */
@@ -1631,7 +1655,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            outChar,
                            2,
-                           NULL);
+                           &out_param6);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 7 to the statement */
@@ -1644,7 +1668,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            outChars,
                            16,
-                           NULL);
+                           &out_param7);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 8 to the statement */
@@ -1657,7 +1681,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            outVarchar,
                            13,
-                           NULL);
+                           &out_param8);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 9 to the statement */
@@ -1674,6 +1698,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* bind parameter 10 to the statement */
+  out_param10 = 9;
   cliRC = SQLBindParameter(hstmt,
                            10,
                            SQL_PARAM_OUTPUT,
@@ -1683,7 +1708,7 @@ int callAllDataTypes(SQLHANDLE hdbc)
                            0,
                            outTime,
                            9,
-                           NULL);
+                           &out_param10);
   STMT_HANDLE_CHECK(hstmt, hdbc, cliRC);
 
   /* execute the statement */
@@ -1696,11 +1721,11 @@ int callAllDataTypes(SQLHANDLE hdbc)
   print_mylog_info_format("Value of BIGINT      = %lld", inoutBigint);
   print_mylog_info_format("Value of REAL        = %.2f", inoutReal);
   print_mylog_info_format("Value of DOUBLE      = %.2lf", inoutDouble);
-  print_mylog_info_format("Value of CHAR(1)     = %s", outChar);
-  print_mylog_info_format("Value of CHAR(15)    = %s", outChars);
-  print_mylog_info_format("Value of VARCHAR(12) = %s", outVarchar);
-  print_mylog_info_format("Value of DATE        = %s", outDate);
-  print_mylog_info_format("Value of TIME        = %s\n", outTime);
+  print_mylog_info_format("Value of CHAR(1)     = '%s'", outChar);
+  print_mylog_info_format("Value of CHAR(15)    = '%s'", outChars);
+  print_mylog_info_format("Value of VARCHAR(12) = '%s'", outVarchar);
+  print_mylog_info_format("Value of DATE        = '%s'", outDate);
+  print_mylog_info_format("Value of TIME        = '%s'\n", outTime);
   
   /* free the statement handle */
   cliRC = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);

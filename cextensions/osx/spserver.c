@@ -319,9 +319,9 @@ SQL_API_RC SQL_API_FN out_python_paths(char outPythonPaths[3000], /* VARCHAR(299
     Py_SetProgramName((wchar_t *)L"PY36");
 #endif
    Py_InitializeEx(0);
-   sys_module = PyImport_ImportModule("sys");
+   sys_module = PyImport_ImportModule("sys"); // New reference.
    sys_dict   = PyModule_GetDict(sys_module);  // Borrowed reference.
-   sys_path = PyDict_GetItemString(sys_dict, "path");
+   sys_path   = PyDict_GetItemString(sys_dict, "path"); // Borrowed reference.
    list_path_size = PyList_Size(sys_path);
    outPythonPaths[0] = 0;
 
