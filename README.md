@@ -49,7 +49,7 @@ call OUT_INI_READ('DB2_INSTANCE', ?)
   Parameter Value : conn.ini = C:\ProgramData\IBM\DB2\DB2COPY2\DB2_01/conn.ini
 DSN is NULL
 ```
-meaning the conn.ini was not found on the indicated path.
+meaning the conn.ini was not found on the indicated path, copy conn.ini to 'C:\ProgramData\IBM\DB2\DB2COPY2\DB2_01', rerun the sp.
 # Running the test
 
 Go to directory cextensions, this will create the python c extension, spclient_python.pyd (python27) or spclient_python.cp37-win_amd64.pyd (python37), depending where you are running the test (win64, lin64 or darwin).
