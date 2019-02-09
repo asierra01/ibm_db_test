@@ -195,6 +195,11 @@ else:
 
 class Db2_Cli(object):
     """common class to do error checking and CLI Init, CLI Term
+
+    Attributes
+    ----------
+    my_dict   : :class:`collections.defaultdict`
+                hold conn.ini variables
     """
     myNull = c_void_p(None)
     my_dict = set_users()
@@ -574,12 +579,22 @@ libc     %-40s handle 0x%x
                     # sys.exit(0)
 
     def HandleInfoPrint(self,
-                        htype, # handle type identifier 
-                        hndl, # handle used by the CLI function 
-                        clirc, # return code of the CLI function 
+                        htype,  # handle type identifier 
+                        hndl,   # handle used by the CLI function 
+                        clirc,  # return code of the CLI function 
                         lineno,
                         funcname=None,
                         _file=None):
+        """
+        Parameters
+        ----------
+        htype       : , # handle type identifier 
+        hndl        : , # handle used by the CLI function 
+        clirc       : , # return code of the CLI function 
+        lineno      : :obj:`int`
+        funcname    : :obj:`str`
+        _file
+        """
         rc = 0
         if _file is None:
             _file =  sys.modules[__name__]
@@ -590,15 +605,15 @@ libc     %-40s handle 0x%x
             file_name = _file
 
         err_dict = {SQL_SUCCESS_WITH_INFO: "SQL_SUCCESS_WITH_INFO",
-                    SQL_STILL_EXECUTING:   "SQL_STILL_EXECUTING",
-                    SQL_NEED_DATA      :   "SQL_NEED_DATA",
-                    SQL_NO_DATA_FOUND  :   "SQL_NO_DATA_FOUND"}
+                    SQL_STILL_EXECUTING  : "SQL_STILL_EXECUTING",
+                    SQL_NEED_DATA        : "SQL_NEED_DATA",
+                    SQL_NO_DATA_FOUND    : "SQL_NO_DATA_FOUND"}
 
 
         if clirc == SQL_SUCCESS:
             pass
 
-        elif  clirc == SQL_INVALID_HANDLE:
+        elif clirc == SQL_INVALID_HANDLE:
             mylog.error("""
 -CLI INVALID HANDLE-----
 clirc    %d 
@@ -611,7 +626,7 @@ file     '%s'""" %
             file_name))
             rc = 1
 
-        elif  clirc == SQL_ERROR:
+        elif clirc == SQL_ERROR:
             if self.verbose:
                 mylog.error("""
 --CLI ERROR----SQL_ERROR-------
@@ -619,16 +634,18 @@ clirc    '%s'
 line     '%s' 
 funcname '%s' 
 file     '%s'
-""" % (clirc, lineno, funcname,file_name))
+""" % (clirc, lineno, funcname, file_name))
             return self.HandleDiagnosticsPrint(htype, hndl)
 
-        elif  clirc in err_dict.keys():
+        elif clirc in err_dict.keys():
             mylog.warning (err_dict[clirc]) 
             return self.HandleDiagnosticsPrint(htype, hndl)
 
         else:
-            mylog.info("\n--default----------------\n")
-            mylog.error("clirc %s line %s function_name %s file %s" % (clirc, lineno, funcname, _file))
+            mylog.error("""
+--default----------------
+clirc %s line %d function_name '%s' file '%s'
+""" % (clirc, lineno, funcname, _file))
 
             rc = 3
 
@@ -1010,12 +1027,12 @@ file     '%s'
             pass
 
         if platform.system() == "Linux":
-            mylog.info("type my_hstmt '%s'" % type(my_hstmt))
+            mylog.debug("type my_hstmt '%s'" % type(my_hstmt))
             #mylog.info("sizeof(my_hstmt) %d" % sizeof(my_hstmt))
         rc = self.libcli64.SQLNumResultCols(my_hstmt, byref(self.NOC))
         self.STMT_HANDLE_CHECK(my_hstmt, self.hdbc, rc, "SQLNumResultCols")
         if self.NOC.value == 0:
-            mylog.warn("SQLNumResultCols=0")
+            mylog.warning("SQLNumResultCols=0")
             return
         if rc != 0:
             return
@@ -1070,15 +1087,14 @@ file     '%s'
             self.NOC.value = num_cols
             my_hstmt = spclient_python.python_get_stmt_handle_ibm_db(hstmt, mylog.info)
             if platform.system() == "Linux":
-                mylog.info("my_hstmt '%s' type '%s' size '%d'" % (my_hstmt, type(my_hstmt), sys.getsizeof(my_hstmt) ))
+                mylog.debug("my_hstmt '%s' type '%s' size '%d'" % (my_hstmt, type(my_hstmt), sys.getsizeof(my_hstmt) ))
 
             mylog.debug("my_hstmt %s type %s" % (my_hstmt, type(my_hstmt)))
             self.describe_columns_by_libcli64(my_hstmt, display)
-            #self.describe_columns_by_ibm_db(hstmt, display)
+            #self.describe_columns_by_ibm_db(hstmt, display) #obsolete
 
         else:
-            my_hstmt = hstmt
-            self.describe_columns_by_libcli64(my_hstmt)
+            self.describe_columns_by_libcli64(hstmt)
 
     def DBC_HANDLE_CHECK(self, hdbc, clirc, funcname=None):
         """does an error check using cli functions
@@ -1132,6 +1148,21 @@ _file    '%s'
         """returns several commonly used fields of a diagnostic 
         record, including the SQLSTATE, the native error code, and the diagnostic message text.
         uses SQLGetDiagRec
+
+SQLRETURN SQLGetDiagRec(  
+     SQLSMALLINT     HandleType,  
+     SQLHANDLE       Handle,  
+     SQLSMALLINT     RecNumber,  
+     SQLCHAR *       SQLState,  
+     SQLINTEGER *    NativeErrorPtr,  
+     SQLCHAR *       MessageText,  
+     SQLSMALLINT     BufferLength,  
+     SQLSMALLINT *   TextLengthPtr);  
+
+        Parameters
+        ----------
+        htype    :
+        hndl     : 
         """
         message  = create_string_buffer(SQL_MAX_MESSAGE_LENGTH + 1)
         sqlstate = create_string_buffer(SQL_SQLSTATE_SIZE + 1)
@@ -1224,13 +1255,13 @@ sudo chmod o+rx  /Users/$(whoami)/sqllib/security/db2ckpw
 """)
 
         if self.DB2_NOT_STARTED == 1:
-            #return -1
             return sqlcode.value
 
         if DB2_DATABASE_NOT_FOUND == 1:
             sys.exit(0)
 
         if DB2_CANT_CONNECT == 1:
+            mylog.error("Cant connect")
             sys.exit(0)
 
         mylog.info("returning %d" % sqlcode.value )
