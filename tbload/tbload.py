@@ -32,6 +32,8 @@ sys.path.append(os.getcwd())
 sys.path.append(os.path.join(os.getcwd(),"cli_test"))
 #print sys.path
 
+if sys.version_info[0] == 3:
+    long = int
 
 from cli_test_cases.db2_cli_constants import (
    SQL_USE_LOAD_INSERT,
@@ -98,8 +100,8 @@ class Tbload_load(Db2_Cli):
             Name  = "Juana %d" % index
             Last  = "Last Name %d" % index
  
-            self.First_Name[i]   = create_string_buffer("%20s" %Name,21) #cast("Juana %d" %i,POINTER(c_char *21))
-            self.Last_Name[i]    = create_string_buffer("%20s" %Last,21)
+            self.First_Name[i]   = create_string_buffer(self.encode_utf8("%20s" % Name), 21) #cast("Juana %d" %i,POINTER(c_char *21))
+            self.Last_Name[i]    = create_string_buffer(self.encode_utf8("%20s" % Last), 21)
             self.Cust_Num[i]     = index
             self.First_Name_L[i] = 21#size of each type
             self.Last_Name_L[i]  = 21
@@ -107,10 +109,10 @@ class Tbload_load(Db2_Cli):
 
         for i in range(self.ARRAY_SIZE ):
             if i < 20:
-                mylog.info("data will be inserted %d %s len %d %s" % ( 
+                mylog.info("data will be inserted %d '%s' len %d '%s'" % ( 
                  self.Cust_Num[i],
-                 self.First_Name[i].value,sizeof(self.First_Name[i]),
-                 self.Last_Name[i].value))
+                 self.encode_utf8(self.First_Name[i].value), sizeof(self.First_Name[i]),
+                 self.encode_utf8(self.Last_Name[i].value)))
             else:
                 break
 
@@ -141,7 +143,7 @@ class Tbload_load(Db2_Cli):
                                 SQL_PARAM_INPUT,
                                 SQL_C_CHAR,
                                 SQL_VARCHAR ,
-                                self.ARRAY_SIZE ,
+                                self.ARRAY_SIZE,
                                 0,
                                 self.First_Name,
                                 21,
@@ -165,9 +167,9 @@ class Tbload_load(Db2_Cli):
         if ret == -1:
             return
 
-    def do_the_job_TABLE_LOAD(self):
+    def do_the_job_TEST_TABLE_LOAD(self):
         """does a cli load SQL_ATTR_USE_LOAD_API
-        by inserting NUM_ITERATIONS on table TABLE_LOAD (Some_Data  VARCHAR(100))
+        by inserting NUM_ITERATIONS on table TEST_TABLE_LOAD (Some_Data  VARCHAR(100))
         """
         #COMPRESS YES ON TBNOTLOG "
         if platform.system() == "Windows":
@@ -175,12 +177,12 @@ class Tbload_load(Db2_Cli):
             self.DB2_BATCH_INSERT = self.my_dict['DB2_BATCH_INSERT']
             self.ARRAY_SIZE       = int(self.DB2_BATCH_INSERT)
             self.NUM_ITERATIONS   = 100
-            self.CREATE_TABLE     = """
+            self.CREATE_TABLE     = self.encode_utf8("""
 CREATE TABLE 
-    "%s".TABLE_LOAD (Some_Data  VARCHAR(100))
+    "%s".TEST_TABLE_LOAD (Some_Data  VARCHAR(100))
 NOT LOGGED INITIALLY
 IN TBNOTLOG 
-""" % self.my_dict['DB2_USER'].upper() #IN TESTTS_8k COMPRESS YES
+""" % self.my_dict['DB2_USER'].upper()) #IN TESTTS_8k COMPRESS YES
 
         elif platform.system() == "Darwin":
             self.SAMPLE_DATA        = "dummy data"+ "X"*40
@@ -189,11 +191,11 @@ IN TBNOTLOG
             self.NUM_ITERATIONS     = 20
             # "CREATE TABLE LOADTABLE (Col1 VARCHAR(30))"
             # IN TBNOTLOG 
-            self.CREATE_TABLE    = """
+            self.CREATE_TABLE       = self.encode_utf8("""
 CREATE TABLE 
-    "%s".TABLE_LOAD (Some_Data  VARCHAR(100))
+    "%s".TEST_TABLE_LOAD (Some_Data  VARCHAR(100))
 NOT LOGGED INITIALLY
-""" % self.my_dict['DB2_USER'].upper()
+""" % self.my_dict['DB2_USER'].upper())
 
             mylog.info("Using DB2_BATCH_INSERT '%s'" % self.DB2_BATCH_INSERT)
 
@@ -201,11 +203,11 @@ NOT LOGGED INITIALLY
             self.SAMPLE_DATA     = "dummy data" +"X"*40
             self.ARRAY_SIZE      = 1000
             self.NUM_ITERATIONS  = 3
-            self.CREATE_TABLE    = """
+            self.CREATE_TABLE    = self.encode_utf8("""
 CREATE TABLE 
-    "%s".TABLE_LOAD (Some_Data  VARCHAR(100))
+    "%s".TEST_TABLE_LOAD (Some_Data  VARCHAR(100))
 NOT LOGGED INITIALLY
-""" % self.my_dict['DB2_USER'].upper()
+""" % self.my_dict['DB2_USER'].upper())
 
         if self.FAST_TEST:
             self.ARRAY_SIZE      = 10
@@ -222,7 +224,7 @@ NOT LOGGED INITIALLY
         self.pLoadOut         = struct_db2LoadOut()    # db2LoadOut *
         self.pLoadStruct      = struct_db2LoadStruct() # db2LoadStruct
         self.pDataDescriptor  = struct_sqldcol()       # struct sqldcol *
-        self.pMessageFile     = c_char_p(self.MESSAGE_FILE_TEST1)
+        self.pMessageFile     = c_char_p(self.encode_utf8(self.MESSAGE_FILE_TEST1))
         self.iRowsRead        = SQLINTEGER(0)
         self.iRowsSkipped     = SQLINTEGER(0)
         self.iRowsLoaded      = SQLINTEGER(0)
@@ -282,9 +284,9 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         self.pLoadStruct.piLoadInfoIn          = pointer(self.pLoadIn)
         self.pLoadStruct.poLoadInfoOut         = pointer(self.pLoadOut)
 
-        self.pLoadIn.iRestartphase    = ' '
+        self.pLoadIn.iRestartphase    = b' '
         self.pLoadIn.iNonrecoverable  = SQLU_NON_RECOVERABLE_LOAD;
-        self.pLoadIn.iStatsOpt        = SQLU_STATS_NONE # (char)SQLU_STATS_NONE
+        self.pLoadIn.iStatsOpt        = b' ' # (char)SQLU_STATS_NONE
         self.pLoadIn.iSavecount       = 0
         self.pLoadIn.iCpuParallelism  = 0
         self.pLoadIn.iDiskParallelism = 0
@@ -294,15 +296,23 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         self.pLoadStruct.piLocalMsgFileName = cast(self.pMessageFile, POINTER_T(c_char))
         self.pDataDescriptor.dcolmeth = SQL_METH_D;
 
-        statementText =  c_char_p("""DROP TABLE "%s".TABLE_LOAD""" % self.my_dict['DB2_USER'].upper())
-        mylog.info("statementText \n'%s' size '%d' " % (statementText.value, self.libc.strlen(statementText)))
+        str_drop_sql = """
+DROP TABLE 
+    "%s".TEST_TABLE_LOAD
+""" % self.my_dict['DB2_USER'].upper()
+
+        statementText =  c_char_p(self.encode_utf8(str_drop_sql))
+        mylog.info("statementText \n'%s' size '%d' " % (
+            self.encode_utf8(statementText.value),
+            self.libc.strlen(statementText)))
+
         cliRC= self.libcli64.SQLExecDirect(self.hstmt,
                                            statementText,
                                            self.libc.strlen(statementText))
         self.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, cliRC,"DROP TABLE SQLExecDirect")
 
-        statementText = c_char_p( self.CREATE_TABLE)
-        mylog.info("statementText \n'%s'" % statementText.value)
+        statementText = c_char_p(self.CREATE_TABLE)
+        mylog.info("statementText \n'%s'" % self.encode_utf8(statementText.value))
         cliRC= self.libcli64.SQLExecDirect(self.hstmt,
                                            statementText,
                                            self.libc.strlen(statementText))
@@ -317,23 +327,23 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         str_iBufferSize = "{:,}".format(self.iBufferSize)
         mylog.info("iBufferSize %s" % str_iBufferSize)
 
-        #pTempBuffer = create_string_buffer(0,iBufferSize)
-        #mylog.info("iBufferSize %d" % iBufferSize)
 
-        self.strlen_SAMPLEDATA = self.libc.strlen(self.SAMPLE_DATA)
-        mylog.info("block data to move %d, how many times %s, total size %s" % (
+        self.strlen_SAMPLEDATA = self.libc.strlen(self.encode_utf8(self.SAMPLE_DATA))
+        mylog.info("block data to move %d, how many times %s, total size str_iBufferSize '%s' \nSAMPLE_DATA '%s'" % (
            self.strlen_SAMPLEDATA,
            "{:,}".format(self.ARRAY_SIZE),
-           str_iBufferSize))
+           str_iBufferSize,
+           self.SAMPLE_DATA))
 
         mylog.info("sample_data_buffer_size %s type %s" % (
             "{:,}".format(sample_data_buffer_size), 
             type(sample_data_buffer_size)))
+
         #print sample_data_buffer_size._length_()
         char_array = c_char * int(sample_data_buffer_size)
         my_str = "{:,}".format(sample_data_buffer_size)
-        mylog.info("char_array %s type %s" % (my_str, type(char_array)))
-        
+        mylog.info("char_array size %s type %s" % (my_str, type(char_array)))
+
         self.buf_continous_chunk_of_data_to_be_inserted = (char_array)()
         int_array = c_int32 * (self.ARRAY_SIZE)
         self.pColumnSizes = int_array()
@@ -349,14 +359,16 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         str_column_size = "{:,}".format(sizeof(self.pColumnSizes))
         mylog.info("byref pColumnSizes mem addr %s size '%s'" % (byref(self.pColumnSizes), str_column_size))
         str_buf_size = "{:,}".format(sizeof(self.buf_continous_chunk_of_data_to_be_inserted))
-        mylog.info("byref buf mem addr          %s size '%s'" % (byref(self.buf_continous_chunk_of_data_to_be_inserted),str_buf_size))
-        mylog.info("byref just_for_log c_int32  %s size '%d'" % (byref(just_for_log),sizeof(just_for_log)))
+        mylog.info("byref buf mem addr          %s size '%s'" % (byref(self.buf_continous_chunk_of_data_to_be_inserted),
+                                                                 str_buf_size))
+        mylog.info("byref just_for_log c_int32  %s size '%d'" % (byref(just_for_log),
+                                                                 sizeof(just_for_log)))
 
         # creating some dummy data
         for iLoop in range(self.ARRAY_SIZE ):
             SAMPLE_DATA_B  = "varchar %08ld" %iLoop
             SAMPLE_DATA_B  += self.SAMPLE_DATA
-            my_char_p = c_char_p(SAMPLE_DATA_B)
+            my_char_p = c_char_p(self.encode_utf8(SAMPLE_DATA_B))
             memmove(addressof(self.buf_continous_chunk_of_data_to_be_inserted)+(iLoop*self.strlen_SAMPLEDATA),
                     my_char_p,
                     self.strlen_SAMPLEDATA)
@@ -364,18 +376,22 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         cont  = 0
         for iLoop in range(self.ARRAY_SIZE):
             cont += 1  
+
             if cont > 20 :
                 break
+
             item1 = cast(addressof(self.buf_continous_chunk_of_data_to_be_inserted)+(iLoop*self.strlen_SAMPLEDATA),
                         POINTER(c_char  * self.strlen_SAMPLEDATA))
-            mylog.info("dummy data being inserted [%d] = %s" % (
+
+            mylog.info("dummy data being inserted [%d] = '%s' sizes %d" % (
                 iLoop,
-                item1.contents.value))
+                self.encode_utf8(item1.contents.value),
+                self.pColumnSizes[iLoop]))
 
         #item1 =  (c_char * strlen_SAMPLEDATA).from_buffer(buf) 
 
         #mylog.info("item1 %s '%s'" % (item1,item1.raw))
-        mylog.info("buf   %s total buffer size of data being inserted '%d'" % (
+        mylog.info("buf   '%s' total buffer size of data being inserted '%d'" % (
             self.buf_continous_chunk_of_data_to_be_inserted,
             sizeof(self.buf_continous_chunk_of_data_to_be_inserted)))
         #for i in range(120):
@@ -383,8 +399,11 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         #mylog.info("buf   %s '%s' %d" % (buf,buf.raw, len(buf.raw)))
         mylog.info("prepare the INSERT statement ")
 
-        statementText = c_char_p( """INSERT INTO "%s".TABLE_LOAD VALUES (?)""" % self.my_dict['DB2_USER'].upper())
-        mylog.info("statementText '%s'" % statementText.value)
+        statementText = c_char_p( self.encode_utf8("""
+INSERT INTO 
+    "%s".TEST_TABLE_LOAD VALUES (?)
+""" % self.my_dict['DB2_USER'].upper()))
+        mylog.info("statementText '%s'" % self.encode_utf8(statementText.value))
         cliRC= self.libcli64.SQLPrepare(self.hstmt,
                                        statementText,
                                        self.libc.strlen(statementText));
@@ -396,7 +415,7 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         int_ARRAY_SIZE = c_uint32(self.ARRAY_SIZE )
         cliRC = self.libcli64.SQLSetStmtAttr(self.hstmt,
                                              SQL_ATTR_PARAMSET_SIZE,
-                                             int_ARRAY_SIZE, 
+                                             int_ARRAY_SIZE,
                                              0);
         ret = self.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, cliRC,"SQL_ATTR_PARAMSET_SIZE SQLSetStmtAttr")
         if ret == -1:
@@ -463,20 +482,33 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
         cliRC= self.setCLILoadMode(self.hstmt, self.hdbc, FALSE, self.pLoadStruct)
         self.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, cliRC,"setCLILoadMode")
 
-        mylog.info("\n  Load messages can be found in file [%s].\n" % self.pMessageFile)
-        mylog.info("\n  Load report :\n")
         iRowsRead = self.pLoadOut.oRowsRead
-        mylog.info("    Number of rows read      : %d" % iRowsRead)
         iRowsSkipped = self.pLoadOut.oRowsSkipped
-        mylog.info("    Number of rows skipped   : %d" % iRowsSkipped)
         iRowsLoaded = self.pLoadOut.oRowsLoaded
-        mylog.info("    Number of rows loaded    : %d" % iRowsLoaded)
         iRowsRejected = self.pLoadOut.oRowsRejected;
-        mylog.info("    Number of rows rejected  : %d" % iRowsRejected)
         iRowsDeleted = self.pLoadOut.oRowsDeleted
-        mylog.info("    Number of rows deleted   : %d" % iRowsDeleted)
         iRowsCommitted = self.pLoadOut.oRowsCommitted
-        mylog.info("    Number of rows committed : %d" % iRowsCommitted)
+        mylog.info("""
+Load messages can be found in file [%s]. 
+Load report :
+
+    Number of rows read      : %d
+    Number of rows skipped   : %d
+    Number of rows loaded    : %d
+    Number of rows rejected  : %d
+    Number of rows deleted   : %d
+    Number of rows committed : %d
+
+    done %f""" % (self.encode_utf8(self.pMessageFile.value),
+          iRowsRead,
+          iRowsSkipped,
+          iRowsLoaded,
+          iRowsRejected,
+          iRowsDeleted,
+          iRowsCommitted,
+          end_time.total_seconds()
+          ))
+
 
         self.terminateApp(self.hstmt, self.hdbc, self.henv, self.dbAlias)
         end_time = datetime.now()-start_time
@@ -491,14 +523,15 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""")
                                 First_Name  VARCHAR(21), 
                                 Last_Name  VARCHAR(21))
         """
-        self.CREATE_TABLE    = """
-CREATE TABLE "%s".TEST_LOAD_INSERT_CUSTOMER (
-Cust_Num    INTEGER,  
-First_Name  VARCHAR(21), 
-Last_Name   VARCHAR(21))
+        self.CREATE_TABLE    = self.encode_utf8("""
+CREATE TABLE 
+    "%s".TEST_LOAD_INSERT_CUSTOMER (
+        Cust_Num    INTEGER,
+        First_Name  VARCHAR(21), 
+        Last_Name   VARCHAR(21))
 NOT LOGGED  INITIALLY
 IN TBNOTLOG 
-""" % self.my_dict['DB2_USER'].upper() #IN TESTTS_8k COMPRESS YES
+""" % self.my_dict['DB2_USER'].upper()) #IN TESTTS_8k COMPRESS YES
 
         if platform.system() == "Windows":
             self.ARRAY_SIZE      = self.DB2_BATCH_INSERT
@@ -531,7 +564,7 @@ IN TBNOTLOG
         self.pLoadOut         = struct_db2LoadOut()  #db2LoadOut *
         self.pLoadStruct      = struct_db2LoadStruct() #* db2LoadStruct
         self.pDataDescriptor  = struct_sqldcol() # struct sqldcol *
-        self.pMessageFile     = c_char_p(self.MESSAGE_FILE_TEST1)
+        self.pMessageFile     = c_char_p(self.encode_utf8(self.MESSAGE_FILE_TEST1))
         self.iRowsRead        = SQLINTEGER(0)
         self.iRowsSkipped     = SQLINTEGER(0)
         self.iRowsLoaded      = SQLINTEGER(0)
@@ -590,11 +623,11 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""");
         self.pLoadStruct.piNullIndicators      = cast(Nullpointer, POINTER_T(c_int32))
         self.pLoadStruct.piLoadInfoIn          = pointer(self.pLoadIn)
         self.pLoadStruct.poLoadInfoOut         = pointer(self.pLoadOut)
-        self.pMessageFile                      = c_char_p(self.MESSAGE_FILE_TEST2)
+        self.pMessageFile                      = c_char_p(self.encode_utf8(self.MESSAGE_FILE_TEST2))
 
-        self.pLoadIn.iRestartphase    = ' '
+        self.pLoadIn.iRestartphase    = b' '
         self.pLoadIn.iNonrecoverable  = SQLU_NON_RECOVERABLE_LOAD
-        self.pLoadIn.iStatsOpt        = SQLU_STATS_NONE # (char)SQLU_STATS_NONE
+        self.pLoadIn.iStatsOpt        = b' ' # (char)SQLU_STATS_NONE
         self.pLoadIn.iSavecount       = 0
         self.pLoadIn.iCpuParallelism  = 0
         self.pLoadIn.iDiskParallelism = 0
@@ -612,15 +645,20 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""");
         self.First_Name_L= (c_int32    * (self.ARRAY_SIZE ) ) ()
         self.Last_Name_L = (c_int32    * (self.ARRAY_SIZE ) ) ()
 
-        statementText =  c_char_p("""DROP TABLE "%s".TEST_LOAD_INSERT_CUSTOMER""" % self.my_dict['DB2_USER'].upper())
-        mylog.info("statementText \n'%s' size '%d' " % (statementText.value,self.libc.strlen(statementText)))
+        statementText =  c_char_p(self.encode_utf8("""
+DROP TABLE 
+    "%s".TEST_LOAD_INSERT_CUSTOMER
+""" % self.my_dict['DB2_USER'].upper()))
+        mylog.info("statementText \n'%s' size '%d' " % (
+                             self.encode_utf8(statementText.value),
+                             self.libc.strlen(statementText)))
         cliRC= self.libcli64.SQLExecDirect(self.hstmt,
                                            statementText,
                                            self.libc.strlen(statementText))
         self.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, cliRC,"DROP TABLE SQLExecDirect")
 
-        statementText = c_char_p( self.CREATE_TABLE)
-        mylog.info("statementText \n'%s'" % statementText.value)
+        statementText = c_char_p(self.CREATE_TABLE)
+        mylog.info("statementText \n'%s'" % self.encode_utf8(statementText.value))
         cliRC= self.libcli64.SQLExecDirect(self.hstmt,
                                            statementText,
                                            self.libc.strlen(statementText))
@@ -632,10 +670,16 @@ TO INSERT DATA WITH THE CLI LOAD UTILITY:""");
         mylog.info("""
 allocate a buffer to hold data to insert 
 initialize the array of rows")
-prepare the INSERT statement """)
+prepare the INSERT statement
+""")
 
-        statementText = c_char_p( """INSERT INTO "%s".TEST_LOAD_INSERT_CUSTOMER VALUES (?,?,?)""" % self.my_dict['DB2_USER'].upper())
-        mylog.info("statementText \n'%s'" % statementText.value)
+        statementText = c_char_p( self.encode_utf8("""
+INSERT INTO 
+    "%s".TEST_LOAD_INSERT_CUSTOMER 
+VALUES 
+    (?,?,?)
+""" % self.my_dict['DB2_USER'].upper()))
+        mylog.info("statementText \n'%s'" % self.encode_utf8(statementText.value))
         cliRC= self.libcli64.SQLPrepare(self.hstmt,
                                        statementText,
                                        self.libc.strlen(statementText));
@@ -715,7 +759,7 @@ Load report :
     Number of rows deleted   : %d
     Number of rows committed : %d
 
-    done %f""" % (self.pMessageFile.value,
+    done %f""" % (self.encode_utf8(self.pMessageFile.value),
           iRowsRead,
           iRowsSkipped,
           iRowsLoaded,
@@ -726,7 +770,7 @@ Load report :
           ))
 
         self.terminateApp(self.hstmt, self.hdbc, self.henv, self.dbAlias)
-        
+
 
         return 0
 
@@ -814,7 +858,7 @@ class initialize():
     def __init__(self):
         tbload_load = Tbload_load()
 
-        tbload_load.do_the_job_TABLE_LOAD()
+        tbload_load.do_the_job_TEST_TABLE_LOAD()
         tbload_load.do_the_job_TEST_LOAD_INSERT_CUSTOMER()
 
         my_test_ibm_db = Db_Size()
