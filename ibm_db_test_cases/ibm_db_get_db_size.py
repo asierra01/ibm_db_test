@@ -21,6 +21,7 @@ execute_once = Value(c_bool,False)
 
 from cli_test_cases.db2_cli_constants import (
     SQL_ERROR,
+    SQL_SUCCESS,
     SQL_TIMESTAMP,
     SQL_BIGINT,
     SQL_INTEGER,
@@ -40,8 +41,8 @@ __all__ = ['GET_DB_SIZE']
 class GET_DB_SIZE(CommonTestCase):
     """test for SYSPROC.GET_DBSIZE_INFO using ibm_db ibm_db.callproc"""
 
-    def __init__(self, testName, extraArg=None):
-        super(GET_DB_SIZE, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(GET_DB_SIZE, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         with execute_once.get_lock():
@@ -67,8 +68,8 @@ class GET_DB_SIZE(CommonTestCase):
                                                             0,
                                                             self.myNull)
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, clirc,"SQLBindParameter 1")
-        if clirc == SQL_ERROR:
-            return SQL_ERROR
+        if clirc != SQL_SUCCESS:
+            return clirc
 
         clirc = self.mDb2_Cli.libcli64.SQLBindParameter(self.hstmt,
                                                             2,
@@ -110,14 +111,14 @@ class GET_DB_SIZE(CommonTestCase):
 
     def test_spclient_python_get_dbsize(self):
         """Get db size by calling SYSPROC.GET_DBSIZE_INFO by spclient python c extension
-        spclient_python.python_call_get_db_size
+        spclient_python.call_get_db_size
         """
         try:
             self.SNAPSHOTTIMESTAMP  = DB2_TIMESTAMP()
             self.SNAPSHOTTIMESTAMP.year = 2011
             self.SNAPSHOTTIMESTAMP.month = 6
-            mylog.info("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
-            my_list_sizes = spclient_python.python_call_get_db_size(self.conn, mylog.info, self.SNAPSHOTTIMESTAMP)
+            mylog.debug("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
+            my_list_sizes = spclient_python.call_get_db_size(self.conn, mylog.info, self.SNAPSHOTTIMESTAMP)
             mylog.info("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
             mylog.info("DatabaseSize {:,} DatabaseCapacity {:,}".format(my_list_sizes[0], my_list_sizes[1]))
             mylog.info("DatabaseSize %s DatabaseCapacity %s" % (
@@ -133,10 +134,13 @@ class GET_DB_SIZE(CommonTestCase):
         """test calling SYSPROC.GET_DBSIZE_INFO using ibm_db ibm_db.callproc
         sp_get_dbsize_info.py does the same but using db2cli64 Python wrapper on db2 cli binary library
 
-        CREATE PROCEDURE SYSPROC.GET_DBSIZE_INFO (OUT SNAPSHOTTIMESTAMP TIMESTAMP, 
+        CREATE PROCEDURE SYSPROC.GET_DBSIZE_INFO 
+
+        (OUT SNAPSHOTTIMESTAMP TIMESTAMP, 
         OUT DATABASESIZE BIGINT, 
         OUT DATABASECAPACITY BIGINT, 
         REFRESHWINDOW INTEGER)
+
         SPECIFIC SYSPROC.GET_DBSIZE_INFO
         MODIFIES SQL DATA
         LANGUAGE C
@@ -149,7 +153,7 @@ class GET_DB_SIZE(CommonTestCase):
         try:
             timestamp_output_parameter='0000.00.00'
             #if self.server_info.DBMS_NAME == "DB2/DARWIN":
-            mylog.warn("this crash under Mac....not running it")
+            mylog.warning("this crash under Mac....not running it")
             return 0
             out2 = long(0)
             out3 = long(0)
@@ -197,18 +201,21 @@ class GET_DB_SIZE(CommonTestCase):
             mylog.info ("executing '%s' " % exec_str)
             stmt1 = ibm_db.prepare(self.conn, exec_str)
 
-            self.hstmt = spclient_python.python_get_stmt_handle_ibm_db(stmt1, mylog.info)
-            self.hdbc =  spclient_python.python_get_hdbc_handle_ibm_db(stmt1, mylog.info)
+            self.hstmt = spclient_python.get_stmt_handle(stmt1, mylog.info)
+            mylog.info("hstmt %s", self.hstmt)
+            self.hdbc =  spclient_python.get_hdbc_handle(stmt1, mylog.info)
+            mylog.info("hdbc %s", self.hdbc)
             self.mDb2_Cli.describe_parameters(stmt1)
-            self.bind_parameters()
+            mylog.info("calling  bind_parameters")
+            ret = self.bind_parameters()
+            if ret != 0:
+                return 0
 
             mylog.info("ready to execute")
             rc = self.mDb2_Cli.libcli64.SQLExecute(self.hstmt)
             self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, rc,"SQLExecute")
             if rc == 0:
                 mylog.info("all good" )
-
-
 
             mylog.info("OUT Parameters SNAPSHOTTIMESTAMP:     '%s' " % self.SNAPSHOTTIMESTAMP)
             mylog.info("OUT Parameters REFRESHWINDOW:         '%s' " % self.REFRESHWINDOW)

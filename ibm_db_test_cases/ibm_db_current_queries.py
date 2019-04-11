@@ -15,8 +15,8 @@ __all__ = ['CurrentQueries']
 class CurrentQueries(CommonTestCase):
     """table list SYSIBMADM.%"""
 
-    def __init__(self,testName, extraArg=None):
-        super(CurrentQueries, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(CurrentQueries, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(CurrentQueries, self).runTest()
@@ -28,11 +28,9 @@ class CurrentQueries(CommonTestCase):
 
         self.test_list_current_queries()
         self.test_read_PDLOGMSGS_LAST24HOURS()
-        mylog.info("done")
 
     def test_list_current_queries(self):
         try:
-            mylog.info("")
             server_info = ibm_db.server_info(self.conn)
             if server_info.DBMS_VER >= "10.5":
                 sql_str = """
@@ -66,7 +64,7 @@ FROM
                 empty_my_row.append("")
             table.set_cols_align(my_allign)
             table.set_cols_width([16,19,16,10,16,19,88])
-
+            one_dictionary = None
             while dictionary:
                 one_dictionary = dictionary
                 my_row = [
@@ -90,7 +88,8 @@ FROM
                 dictionary = ibm_db.fetch_both(stmt2)
 
             mylog.info("\n\n%s\n" % table.draw())
-            self.print_keys(one_dictionary, table_name='current_queries')
+            if one_dictionary:
+                self.print_keys(one_dictionary, table_name='current_queries')
 
             ibm_db.free_result(stmt2)
 

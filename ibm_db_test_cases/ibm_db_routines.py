@@ -3,6 +3,7 @@
 import ibm_db
 from texttable import Texttable
 from . import CommonTestCase
+import spclient_python
 from utils.logconfig import mylog
 import sys
 from multiprocessing import Value
@@ -15,8 +16,8 @@ __all__ = ['SYSROUTINES']
 
 class SYSROUTINES(CommonTestCase):
 
-    def __init__(self,testName, extraArg=None): 
-        super(SYSROUTINES, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None): 
+        super(SYSROUTINES, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         with execute_once.get_lock():
@@ -29,6 +30,7 @@ class SYSROUTINES(CommonTestCase):
         self.test_list_functions_details()
         self.test_sysfunctions()
         self.test_sysroutines()
+        self.test_sqlextendedprocedures()
 
     def test_list_functions_details(self):
         sql_str = """
@@ -46,6 +48,9 @@ ORDER BY
         add_lines = ["RETURNS",
                      "NOT DETERMINISTIC",
                      "SPECIFIC",
+                     "AND",
+                     "OR",
+                     "THEN",
                      "CALLED ON NULL INPUT",
                      "READS SQL DATA",
                      "NO EXTERNAL ACTION",
@@ -87,6 +92,10 @@ ORDER BY
 
         mylog.info("\n%s" % table.draw())
         ibm_db.free_result(stmt2)
+        return 0
+
+    def test_sqlextendedprocedures(self):
+        spclient_python.sqlextendedstoreproc(self.conn, mylog.info)
         return 0
 
     def test_sysroutines_auth(self):

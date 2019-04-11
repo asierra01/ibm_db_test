@@ -20,8 +20,8 @@ class BufferTest(CommonTestCase):
     """Test BufferPool
     """
 
-    def __init__(self, testName, extraArg=None): 
-        super(BufferTest, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None): 
+        super(BufferTest, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         """start running my test
@@ -48,72 +48,39 @@ class BufferTest(CommonTestCase):
                 return
             execute_once.value = True
 
-        self.test_drop_bp4k()
-        self.test_create_and_change_bp4k_to_10000_pages()
+        self.test_drop_BP4K_TEST()
+        self.test_create_and_change_BP4K_to_10000_pages()
         self.test_change_BOOFERPOOL_SIZE()
         self.test_list_BUFFERPOOLS('arg1')
         self.test_CONTAINER_UTILIZATION()
 
 
     @unittest.expectedFailure
-    def test_drop_bp4k(self):
-        """drop bufferpool bp4k
+    def test_drop_BP4K_TEST(self):
+        """drop bufferpool BP4K_TEST
         """
         try:
-            sql_str = """
-SELECT 
-    BPNAME
-FROM 
-    SYSCAT.BUFFERPOOLS
-WHERE
-   BPNAME = 'BP4K'
-"""
-            mylog.info("executing \n%s\n" % sql_str)
-            stmt_select = ibm_db.exec_immediate(self.conn, sql_str)
-            found = False
-            dictionary = ibm_db.fetch_both(stmt_select)
-            while dictionary:
-                if dictionary['BPNAME'].upper() == "BP4K":
-                    found = True
-                    break
-                dictionary = ibm_db.fetch_both(stmt_select)
-            ibm_db.free_result(stmt_select)
+            found = self.if_bufferpool_present('BP4K_TEST')
+
             if not found:
                 mylog.warning("""
-BufferPool bp4k not found so we cant drop it""")
-                self.result.addSkip(self, "bp4k doesn't exist so we cant drop it")
+BufferPool BP4K_TEST not found so we cant drop it
+""")
+                self.result.addSkip(self, "BP4K_TEST doesn't exist so we cant drop it")
                 return 0
 
-            TBLSP14K_found = False
-            sql_str = """
-SELECT 
-    TBSP_NAME
-FROM 
-    SYSIBMADM.TBSP_UTILIZATION
-WHERE
-   TBSP_NAME = 'TBLSP14K'
-"""
-            mylog.info("executing \n%s\n" % sql_str)
-            stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
-            dictionary = ibm_db.fetch_both(stmt1)
-            while dictionary:
-                if dictionary['TBSP_NAME'] == 'TBLSP14K':
-                    TBLSP14K_found = True
-                    mylog.info("TBLSP14K_found Found!")
-                    break
-                dictionary = ibm_db.fetch_both(stmt1)
-            ibm_db.free_result(stmt1)
+            tblspace_test = self.if_tablespace_present('TBLSP14K_TEST')
 
-            if TBLSP14K_found:
+            if tblspace_test:
                 sql_str = """
-DROP TABLESPACE TBLSP14K
+DROP TABLESPACE TBLSP14K_TEST
 @
 """
                 mylog.info("executing %s" % sql_str)
                 self.run_statement(sql_str)
 
             sql_str = """
-DROP BUFFERPOOL bp4k
+DROP BUFFERPOOL BP4K_TEST
 @
 """
             mylog.info("executing \n%s\n" % sql_str)
@@ -135,39 +102,23 @@ DROP BUFFERPOOL bp4k
 
         return 0
 
-    def test_create_and_change_bp4k_to_10000_pages(self):
+    def test_create_and_change_BP4K_to_10000_pages(self):
         """create and change bp4k to 10000 pages
         """
         try:
-            sql_str = """
-SELECT 
-    BPNAME
-FROM 
-    SYSCAT.BUFFERPOOLS
-WHERE
-    BPNAME = 'BP4K'
-"""
-            mylog.info("executing \n%s\n" % sql_str)
-            stmt_select = ibm_db.exec_immediate(self.conn, sql_str)
-            found = False
-            dictionary = ibm_db.fetch_both(stmt_select)
-            while dictionary:
-                if dictionary['BPNAME'].upper() == "BP4K":
-                    found = True
-                    mylog.info("BP4K Found !")
-                    break
-                dictionary = ibm_db.fetch_both(stmt_select)
-            ibm_db.free_result(stmt_select)
+            found = self.if_bufferpool_present('BP4K')
             if not found:
-                my_str = """
-CREATE  BUFFERPOOL 
+                sql_str = """
+CREATE  BUFFERPOOL
     BP4K 
-DEFERRED SIZE 10000 AUTOMATIC
+SIZE 10000 AUTOMATIC
 PAGESIZE 4 K
 @
 """
-                mylog.info("executing \n%s\n" % my_str)
-                self.run_statement(sql_str)
+                mylog.info("executing \n%s\n" % sql_str)
+                ret = self.run_statement(sql_str)
+                if ret == 0:
+                    mylog.debug("BP4K created OK")
             else:
                 mylog.warning("BP4K was already created, skipping test")
                 self.result.addSkip(self, "BP4K was already created")
@@ -195,6 +146,9 @@ PAGESIZE 4 K
         table.header(spl)
         table.set_cols_width([16,14,10,10,10,10,10,15,10])
         table.set_header_align(["l" for _i in spl])
+        table._header_align[2] = "r"
+        table._header_align[3] = "r"
+        table._align = table._header_align
 
         try:
             mylog.info("arg1 = '%s'" % arg1)
@@ -208,15 +162,13 @@ FROM
             stmt = ibm_db.exec_immediate(self.conn, sql_str)
             dictionary = ibm_db.fetch_both(stmt)
 
-            _rows1 = ibm_db.num_rows(stmt)
-
             while dictionary:
                 one_dictionary = dictionary
                 my_row = [
                    dictionary['BPNAME'],
                    dictionary['BUFFERPOOLID'],
                    dictionary['PAGESIZE'],
-                   dictionary['NPAGES'],
+                   "{:,}".format(dictionary['NPAGES']),
                    dictionary['DBPGNAME'] if dictionary['DBPGNAME'] else "" ,
                    dictionary['BLOCKSIZE'],
                    dictionary['NGNAME'] if dictionary['NGNAME'] else "",
@@ -227,7 +179,7 @@ FROM
             mylog.info("\n\n%s\n\n" % table.draw())
             self.print_keys(one_dictionary)
             ibm_db.free_result(stmt)
-            # I was provoking an exp here just for testing
+            # I was provoking an exc here just for testing
             # a =  1/0 
         except Exception as _i:
             self.result.addFailure(self, sys.exc_info())
@@ -292,26 +244,27 @@ ORDER BY
                           'l',
                           'l',
                           'l',
-                          'l',
-                          'l',
+                          'r',
+                          'r',
                           'r',
                           'r',
                           'l',
-                          'l',
-                          'l']
+                          'r',
+                          'r']
             table.set_cols_align(cols_align)
-            str_header = "ID NAME TYPE TBSP_NAME FS_USED_SIZE_KB FS_TOTAL_SIZE_KB TOTAL_PAGES USABLE_PAGES TBSP_ID SNAPSHOT_TIMESTAMP DBPARTN"
+            str_header = "ID CONTAINER_NAME CONTAINER_TYPE TBSP_NAME FS_USED_SIZE_KB FS_TOTAL_SIZE_KB TOTAL_PAGES USABLE_PAGES TBSP_ID SNAPSHOT_TIMESTAMP DBPARTN"
             spl = str_header.split()
             table.header(spl)
             table.set_header_align(cols_align)
             table.set_cols_dtype(['t' for _i in spl])
             table.set_cols_width([3, 53, 17, 18, 16, 16, 12, 15, 10, 18, 10])
 
-            max_len_CONTAINER_NAME = 0
+            max_container_name_len = 20 #cant be zero
+            one_dictionary = None
             while dictionary:
                 one_dictionary = dictionary
-                if len(dictionary['CONTAINER_NAME']) > max_len_CONTAINER_NAME:
-                    max_len_CONTAINER_NAME = len(dictionary['CONTAINER_NAME']) + 2
+                if len(dictionary['CONTAINER_NAME']) > max_container_name_len:
+                    max_container_name_len = len(dictionary['CONTAINER_NAME']) + 2
                 FS_USED_SIZE_KB = dictionary['FS_USED_SIZE_KB'] if dictionary['FS_USED_SIZE_KB'] else 0
                 FS_TOTAL_SIZE_KB = dictionary['FS_TOTAL_SIZE_KB'] if dictionary['FS_TOTAL_SIZE_KB'] else 0
                 my_row = [dictionary['CONTAINER_ID'],
@@ -329,15 +282,16 @@ ORDER BY
 
                 dictionary = ibm_db.fetch_both(stmt1)
 
-            table._width[1] = max_len_CONTAINER_NAME
+            table._width[1] = max_container_name_len
             mylog.info("\n%s\n" % table.draw())
-            if one_dictionary['FS_USED_SIZE_KB'] is None:
-                one_dictionary['FS_USED_SIZE_KB'] = 0
+            if one_dictionary:
+                if one_dictionary['FS_USED_SIZE_KB'] is None:
+                    one_dictionary['FS_USED_SIZE_KB'] = 0
 
-            if one_dictionary['FS_TOTAL_SIZE_KB'] is None:
-                one_dictionary['FS_TOTAL_SIZE_KB'] = 0
+                if one_dictionary['FS_TOTAL_SIZE_KB'] is None:
+                    one_dictionary['FS_TOTAL_SIZE_KB'] = 0
 
-            self.print_keys(one_dictionary, True)
+                self.print_keys(one_dictionary, True)
 
             ibm_db.free_result(stmt1)
 

@@ -3,7 +3,7 @@ import sys
 import os
 import ibm_db
 from texttable import Texttable
-from ibm_db_test_cases import CommonTestCase
+from . import CommonTestCase
 from utils import mylog
 from datetime import datetime
 #from cli_test.db2_cli_constants import SQL_PARAM_OUTPUT
@@ -22,8 +22,8 @@ if sys.version_info > (3,):
 class Table_UDF(CommonTestCase):
     DB2_CSV_TEST_FILE = None
 
-    def __init__(self, testName, extraArg=None):
-        super(Table_UDF, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Table_UDF, self).__init__(test_name, extra_arg)
         self.func_TableUDF_CSV_present = False
 
 
@@ -36,7 +36,14 @@ class Table_UDF(CommonTestCase):
                 mylog.debug("we already ran")
                 return
             execute_once.value = True
-        self.DB2_CSV_TEST_FILE = self.mDb2_Cli.my_dict['DB2_CSV_TEST_FILE']
+        DB2_CSV_TEST_FILE = self.mDb2_Cli.my_dict['DB2_CSV_TEST_FILE']
+        if self.server_info.DBMS_NAME == "DB2/NT64":
+            tmp_dir = os.getenv("TMP", r"c:\tmp")
+        else:
+            tmp_dir = "/tmp"
+
+        _path, _name = os.path.split(DB2_CSV_TEST_FILE)
+        self.DB2_CSV_TEST_FILE = os.path.join(tmp_dir, _name)
         self.test_TableUDF_CSV_present()
         self.test_create_table_TESTING_LOAD_FROM_TABLE_FUNCTION_CSV()
         self.test_register_TableUDF_CSV_function()
@@ -122,7 +129,7 @@ ADD CONSTRAINT
 
 
 """     
-        present = self.if_table_present_common(self.conn, 
+        present = self.if_table_present(self.conn, 
                                               "TESTING_LOAD_FROM_TABLE_FUNCTION_CSV", 
                                               self.getDB2_USER())
         if not present:
@@ -209,7 +216,8 @@ BEGIN
         "{user}".TESTING_LOAD_FROM_TABLE_FUNCTION_CSV;
 
     SET records_inserted = v_numRecords;
-END@
+END
+@
 
 """.format(user=self.getDB2_USER(),
            db2_csv_test_file=self.DB2_CSV_TEST_FILE)
@@ -553,7 +561,7 @@ FROM
 
             table = Texttable()
             table.set_deco(Texttable.HEADER)
-            str_header  = "STRIKE Time row_count"
+            str_header  = "STRIKE Time_Reading row_count"
             #str_header  = str_header.upper()
             header_list = str_header.split()
             table.header(header_list)
@@ -578,8 +586,8 @@ FROM
         except Exception as i:
             self.print_exception(i)
             if stmt1:
-                self.mDb2_Cli.STMT_HANDLE_CHECK(spclient_python.python_get_stmt_handle_ibm_db(stmt1, mylog.info),
-                                                spclient_python.python_get_hdbc_handle_ibm_db(stmt1, mylog.info),
+                self.mDb2_Cli.STMT_HANDLE_CHECK(spclient_python.get_stmt_handle(stmt1, mylog.info),
+                                                spclient_python.get_hdbc_handle(stmt1, mylog.info),
                                                     -1,
                                                     "ibm_db.exec_immediate")
             self.result.addFailure(self, sys.exc_info())

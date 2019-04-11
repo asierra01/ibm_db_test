@@ -20,8 +20,8 @@ __all__ = ['DB2Pipe']
 class DB2Pipe(CommonTestCase):
     """DB2Pipe 'pipe1'"""
 
-    def __init__(self, testname, extraarg=None):
-        super(DB2Pipe, self).__init__(testname, extraarg)
+    def __init__(self, test_name, extra_arg=None):
+        super(DB2Pipe, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(DB2Pipe, self).runTest()
@@ -111,7 +111,8 @@ BEGIN
   ELSE
       SET o_status = INTEGER(-99);-- o_status is actually 0
   END IF;
-END@ 
+END
+@ 
 """.format(schema=self.getDB2_USER())
         ret = self.run_statement(sql_str)
         return ret
@@ -121,8 +122,10 @@ END@
         """
 
         sql_str = """
-CALL OPEN_PIPE1()@
-CALL GET_MESSAGE_PIPE1(?,?,?,?,?,?)@
+CALL OPEN_PIPE1()
+@
+CALL GET_MESSAGE_PIPE1(?,?,?,?,?,?)
+@
 """
 
         try:

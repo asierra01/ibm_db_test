@@ -29,18 +29,20 @@ from utils.logconfig import mylog
 import unittest
 from utils.util_unittest import MyTextRunner, MyTextTestResult
 
-__all__ = ['run_Db2Cli_unittest']
+__all__ = ['run_cli_unittest']
 
 
 
-def run_Db2Cli_unittest():
+def run_cli_unittest():
     """unittest way of testing ibm db2 cli code"""
-    mylog.info("running run_Db2Cli_unittest")
+    mylog.info("running run_cli_unittest")
     myDb2_Cli = Db2_Cli(verbose=True)
 
     suite_db2cli = unittest.TestSuite()
     suite_db2cli.addTest(Db2CliTest_UnitTest("Do db2cli test"))
+
     mylog.info("DB2_TEST_BACKUP=%s" % myDb2_Cli.my_dict["DB2_TEST_BACKUP"])
+
     if myDb2_Cli.my_dict["DB2_TEST_BACKUP"] == "1":
         suite_db2cli.addTest(Db2CliTest_BackUpTest("Do db2cli BackUp online offline, test"))
     else:
@@ -51,5 +53,5 @@ def run_Db2Cli_unittest():
                         Db2_Cli=myDb2_Cli).run(suite_db2cli)
 
 if __name__ == "__main__":
-    run_Db2Cli_unittest()
+    run_cli_unittest()
     #print("call python ibm_db_test.py")

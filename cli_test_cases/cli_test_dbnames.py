@@ -78,6 +78,12 @@ class DBnames(Common_Class):
                 return "False"
 
         def SQLGetInf(param, dbInfoBuf1=None):
+            """
+            Parameters
+            ----------
+            param      :  :obj:`Int`  this could be SQL_DB2_DRIVER_VER, SQL_DATA_SOURCE_NAME, ....
+            dbInfoBuf1 :  :class:`ctypes.c_char_Array_XXX` char buffer where to put the data
+            """
 
             self.outlen.value = 0
             mylog.debug("Buffer Size %d" % sizeof(self.dbInfoBuf))

@@ -16,8 +16,8 @@ __all__ = ['DB_Path']
 
 class DB_Path(CommonTestCase):
 
-    def __init__(self, testName, extraArg=None):
-        super(DB_Path, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(DB_Path, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(DB_Path, self).setUp()
@@ -51,14 +51,19 @@ FROM
             stmt1 = ibm_db.exec_immediate(self.conn,sql_str)
             self.mDb2_Cli.describe_columns(stmt1)
             dictionary = ibm_db.fetch_both(stmt1) 
-
+            max_path_len = 0
             while dictionary:
+                path = dictionary['PATH']
+                if len(path) > max_path_len:
+                    max_path_len = len(path)
+
                 my_row = [dictionary['TYPE'],
                           dictionary['PATH'],
                           dictionary['DBPARTITIONNUM']]
                 dictionary = ibm_db.fetch_both(stmt1)
                 table.add_row(my_row)
 
+            table._width[1] = max_path_len + 1
             mylog.info("\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt1)
 
@@ -75,7 +80,7 @@ FROM
         table.set_deco(Texttable.HEADER)
         table.header(header_list)
         table.set_cols_dtype(['t' for _i in header_list] )
-        table.set_cols_width( [28, 20, 60])
+        table.set_cols_width( [10, 20, 60])
         table.set_cols_align(['l' for _i in header_list])
         table.set_header_align(['l' for _i in header_list])
 
@@ -93,14 +98,18 @@ FROM
             stmt1 = ibm_db.exec_immediate(self.conn,sql_str)
             self.mDb2_Cli.describe_columns(stmt1)
             dictionary = ibm_db.fetch_both(stmt1) 
-
+            max_path_len = 10 #cant be zero
             while dictionary:
+                path = dictionary['PATH']
+                if len(path) > max_path_len:
+                    max_path_len = len(path)
                 my_row = [dictionary['DBPARTITIONNUM'],
                           dictionary['TYPE'],
                           dictionary['PATH']]
                 dictionary = ibm_db.fetch_both(stmt1)
                 table.add_row(my_row)
 
+            table._width[2] = max_path_len
             mylog.info("\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt1)
 

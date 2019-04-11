@@ -61,7 +61,7 @@ from __future__ import absolute_import
 
 import sys
 import ibm_db
-from ibm_db_test_cases import CommonTestCase
+from . import CommonTestCase
 from utils.logconfig import mylog
 from multiprocessing import Value
 from ctypes import c_bool
@@ -74,8 +74,8 @@ __all__ = ['DescribeColumns']
 class DescribeColumns(CommonTestCase):
     """DBMS_SQL.DESCRIBE_COLUMNS"""
 
-    def __init__(self, testname, extraarg=None):
-        super(DescribeColumns, self).__init__(testname, extraarg)
+    def __init__(self, test_name, extra_arg=None):
+        super(DescribeColumns, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(DescribeColumns, self).runTest()
@@ -85,6 +85,7 @@ class DescribeColumns(CommonTestCase):
                 mylog.debug("we already ran")
                 return
             execute_once.value = True
+
         self.test_check_DBMS_SQL_TEMP_TBS()
         self.test_register_TEST_DBMS_SQL_DESCRIBE_COLUMNS()
         self.test_run_TEST_DBMS_SQL_DESCRIBE_COLUMNS()
@@ -98,24 +99,7 @@ class DescribeColumns(CommonTestCase):
     def test_check_DBMS_SQL_TEMP_TBS(self):
         """check if DBMS_SQL_TEMP_TBS is presnt
         """
-        self.DBMS_SQL_TEMP_TBS_found = False
-        sql_str = """
-SELECT 
-    TBSP_NAME
-FROM 
-    SYSIBMADM.TBSP_UTILIZATION
-WHERE
-   TBSP_NAME = 'DBMS_SQL_TEMP_TBS'
-"""
-        mylog.info("executing \n%s\n" % sql_str)
-        stmt1 = ibm_db.exec_immediate(self.conn,sql_str)
-        dictionary = ibm_db.fetch_both(stmt1)
-        while dictionary:
-            if dictionary['TBSP_NAME'] == 'DBMS_SQL_TEMP_TBS':
-                self.DBMS_SQL_TEMP_TBS_found = True
-                mylog.info("DBMS_SQL_TEMP_TBS Found!")
-                break
-            dictionary = ibm_db.fetch_both(stmt1)
+        self.DBMS_SQL_TEMP_TBS_found = self.if_tablespace_present('DBMS_SQL_TEMP_TBS')
         return 0
 
     def test_register_TEST_DBMS_SQL_DESCRIBE_COLUMNS(self):
@@ -141,8 +125,14 @@ ALTER MODULE SYSIBMADM.DBMS_SQL PUBLISH TYPE DESC_TAB AS DESC_REC ARRAY[INTEGER]
 
 
         """
+        sql_str_1 = """
+CREATE USER TEMPORARY TABLESPACE
+    DBMS_SQL_TEMP_TBS 
+MANAGED BY 
+    AUTOMATIC STORAGE
+@
+"""
         sql_str =  """
-CREATE USER TEMPORARY TABLESPACE DBMS_SQL_TEMP_TBS MANAGED BY AUTOMATIC STORAGE@
 
 CREATE OR REPLACE PROCEDURE TEST_DBMS_SQL_DESCRIBE_COLUMNS()
 DYNAMIC RESULT SETS 1
@@ -159,9 +149,11 @@ BEGIN
 
 
   CALL DBMS_SQL.OPEN_CURSOR( handle );
+
   CALL DBMS_SQL.PARSE( handle, 
       'SELECT empno, firstnme, lastname, salary 
         FROM employee', DBMS_SQL.NATIVE );
+
   CALL DBMS_SQL.DESCRIBE_COLUMNS( handle, col_cnt, col );
 
   IF col_cnt > 0 THEN
@@ -218,11 +210,10 @@ TO PUBLIC
 @
 """.format(schema=self.getDB2_USER())
 
-        if self.DBMS_SQL_TEMP_TBS_found:
-            sql_str = sql_str.replace("CREATE USER TEMPORARY TABLESPACE DBMS_SQL_TEMP_TBS MANAGED BY AUTOMATIC STORAGE@", "")
+        if not self.DBMS_SQL_TEMP_TBS_found:
+            ret = self.run_statement(sql_str_1)
 
         ret = self.run_statement(sql_str)
-        mylog.info("testing DBMS_SQL.DESCRIBE_COLUMNS...procedure TEST_DBMS_SQL_DESCRIBE_COLUMNS registered")
         return ret
 
     def test_run_TEST_DBMS_SQL_DESCRIBE_COLUMNS(self):
@@ -236,10 +227,11 @@ TO PUBLIC
 CALL TEST_DBMS_SQL_DESCRIBE_COLUMNS()
 @
 """
-        if not self.if_table_present_common(self.conn, "EMPLOYEE", self.getDB2_USER()):
+        if not self.if_table_present(self.conn, "EMPLOYEE", self.getDB2_USER()):
             mylog.warning("""
 Table "%s".EMPLOYEE is not present 
-we cant run sp TEST_DBMS_SQL_DESCRIBE_COLUMNS that depends on table EMPLOYEE""" % self.getDB2_USER())
+we cant run sp TEST_DBMS_SQL_DESCRIBE_COLUMNS that depends on table EMPLOYEE
+""" % self.getDB2_USER())
             self.result.addSkip(self, "Table EMPLOYEE is not present we cant run sp TEST_DBMS_SQL_DESCRIBE_COLUMNS")
             return 0
 
@@ -248,12 +240,19 @@ we cant run sp TEST_DBMS_SQL_DESCRIBE_COLUMNS that depends on table EMPLOYEE""" 
             stmt1 = ibm_db.callproc(self.conn, "TEST_DBMS_SQL_DESCRIBE_COLUMNS", ())
             self.mDb2_Cli.describe_columns(stmt1)
             row = ibm_db.fetch_both(stmt1)
-            table = self.get_table(row)
+
+            if row:
+                table = self.get_table(row)
+            else:
+                table = None
+
             while row:
                 self.add_row_table(table, row)
                 row = ibm_db.fetch_both(stmt1)
 
-            mylog.info("\n%s" % table.draw())
+            if table:
+                mylog.info("\n%s" % table.draw())
+
             ibm_db.free_stmt(stmt1)
 
         except Exception as _i:

@@ -6,7 +6,7 @@ from __future__ import absolute_import
 import sys
 import ibm_db
 
-from ibm_db_test_cases import CommonTestCase
+from . import CommonTestCase
 from utils.logconfig import mylog
 from texttable import Texttable
 from multiprocessing import Value
@@ -19,8 +19,8 @@ execute_once = Value(c_bool, False)
 class CommaToTable(CommonTestCase):
     """CommaToTable"""
 
-    def __init__(self, testname, extraarg=None):
-        super(CommaToTable, self).__init__(testname, extraarg)
+    def __init__(self, test_name, extra_arg=None):
+        super(CommaToTable, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(CommaToTable, self).runTest()
@@ -74,9 +74,11 @@ BEGIN
     END WHILE;
   END;
   OPEN c_table1;
-END@
+END
+@
 
-GRANT EXECUTE ON PROCEDURE "{schema}".comma_to_table TO PUBLIC@
+GRANT EXECUTE ON PROCEDURE "{schema}".comma_to_table TO PUBLIC
+@
 
 """.format(schema=self.getDB2_USER())
         ret = self.run_statement(sql_str)

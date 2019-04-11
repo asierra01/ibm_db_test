@@ -4,7 +4,7 @@ import sys
 
 import ibm_db
 from texttable import Texttable
-from  ibm_db_test_cases import CommonTestCase
+from  . import CommonTestCase
 from utils.logconfig import mylog
 from multiprocessing import Value
 from ctypes import c_bool
@@ -14,12 +14,14 @@ execute_once = Value(c_bool,False)
 
 __all__ = ['Monitor']
 
+if sys.version_info > (3,):
+    long = int
 
 class Monitor(CommonTestCase):
     """test for SYSPROC.MON_GET_XXXXX"""
 
-    def __init__(self,testName, extraArg=None):
-        super(Monitor, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Monitor, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Monitor, self).runTest()
@@ -28,8 +30,9 @@ class Monitor(CommonTestCase):
                 mylog.debug("we already ran")
                 return
             execute_once.value = True
-        self.test_mon_containers()
+        self.test_mon_get_container()
         self.test_MON_GET_BUFFERPOOL()
+        self.test_MON_GET_BUFFERPOOL8K()
         self.test_MON_GET_BUFFERPOOL32K()
         self.test_MON_GET_CONNECTION()
         self.test_SNAP_GET_BP()
@@ -69,20 +72,25 @@ from
             table = Texttable()
             table.set_deco(Texttable.HEADER)
             table.header(["key", "value"])
-            table.set_cols_align(['l', 'l'])
-            table.set_header_align(['l', 'l'])
+            table.set_cols_align(['l', 'r'])
+            table.set_header_align(['l', 'r'])
             table.set_cols_width([55, 55])
             my_list = []
+            if sys.version[0] != "2":
+                long = int
             while dictionary:
                 for key in my_keys:
-                    my_list.append([key, dictionary[key]])
+                    if dictionary[key] != 0:
+                        if isinstance(dictionary[key], (int, long)):
+                            my_list.append([key, "{:,}".format(dictionary[key])])
+                        else:
+                            my_list.append([key, dictionary[key]])
                 my_list.append(["---------------------------------","----------------------------"])
                 dictionary = ibm_db.fetch_both(stmt2)
-            table.add_rows(my_list,header=False)
+            table.add_rows(my_list, header=False)
             mylog.info("\n\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt2)
 
-            mylog.info("done")
         except Exception as _i:
             self.result.addFailure(self,sys.exc_info()) 
             return -1
@@ -92,14 +100,18 @@ from
 
     def test_MON_GET_BUFFERPOOL(self):
         """ SYSPROC.MON_GET_BUFFERPOOL('IBMDEFAULTBP',-1) """
+        #I only have 1 BUFFERPOOL 'IBMDEFAULTBP' but we can have more
+        ''' system hidden bp
+        IBMSYSTEMBP4K
+        IBMSYSTEMBP8K
+        IBMSYSTEMBP16K
+        IBMSYSTEMBP32K 
+        '''
+        self.MON_GET_BUFFERPOOL('IBMDEFAULTBP')
+        return 0
+
+    def MON_GET_BUFFERPOOL(self, bufferpoolname):
         try:
-            #I only have 1 BUFFERPOOL 'IBMDEFAULTBP' but we can have more
-            ''' system hidden bp
-            IBMSYSTEMBP4K
-            IBMSYSTEMBP8K
-            IBMSYSTEMBP16K
-            IBMSYSTEMBP32K 
-            '''
             ret = self.if_routine_present("SYSPROC", "MON_GET_BUFFERPOOL")
             if not ret:
                 self.result.addSkip(self, "SYSPROC.MON_GET_BUFFERPOOL not present")
@@ -109,16 +121,15 @@ from
 select 
     * 
 from 
-    table( SYSPROC.MON_GET_BUFFERPOOL('IBMDEFAULTBP',-1))  AS SNAP
-""" 
-            #else: # DB2 10.1
-            #    select_str = "select * from table( SYSPROC.SNAP_GET_BP('%s',-1))  AS SNAP" % self.DB2_DATABASE
-            mylog.info("executing \n%s\n" % select_str)
+    table( SYSPROC.MON_GET_BUFFERPOOL('%s',-1))  AS SNAP
+""" % bufferpoolname 
+            mylog.debug("executing \n%s\n" % select_str)
             stmt2 = ibm_db.exec_immediate(self.conn, select_str)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
             if not dictionary:
                 mylog.warn("query is empty")
+                return 0
             my_keys = []
             if dictionary:
                 for key in dictionary.keys():
@@ -126,18 +137,22 @@ from
                         #mylog.info(key)
                         my_keys.append(key)  
 
-            mylog.info("filtering by 'BOOFERPOOL' = IBMDEFAULTBP")
+            mylog.info("filtering by BOOFERPOOL = '%s'" % bufferpoolname)
             table = Texttable()
             table.set_deco(Texttable.HEADER)
             table.header(["key", "value"])
-            table.set_header_align(['l', 'l'])
-            table.set_cols_align(['l','l'])
-            table.set_cols_width([55,45])
+            table.set_header_align(['l', 'r'])
+            table.set_cols_align(['l','r'])
+            table.set_cols_width([55, 25])
             #this query only return 1 row per BP
             my_list = []
             while dictionary:
                 for key in my_keys:
-                    my_list.append([key, dictionary[key]])
+                    if dictionary[key] != 0:
+                        if isinstance(dictionary[key], (int, long)):
+                            my_list.append([key, "{:,}".format(dictionary[key])])
+                        else:
+                            my_list.append([key, dictionary[key]])
                 my_list.append(["-------------------------------","------------------------------"])
                 dictionary = ibm_db.fetch_both(stmt2)
             if sys.version_info[0] == 2:
@@ -145,71 +160,34 @@ from
             table.add_rows(my_list,header=False)
             mylog.info("\n\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt2)
-            mylog.info("done")
         except Exception as _i:
             self.result.addFailure(self,sys.exc_info())
             return -1 
         return 0
 
+
     def test_MON_GET_BUFFERPOOL32K(self):
         """ SYSPROC.MON_GET_BUFFERPOOL('IBMSYSTEMBP32K',-1) """
-        try:
-            #I only have 1 BUFFERPOOL 'IBMDEFAULTBP' but we can have more
-            ''' system hidden bp
-            IBMSYSTEMBP4K
-            IBMSYSTEMBP8K
-            IBMSYSTEMBP16K
-            IBMSYSTEMBP32K 
-            '''
-            ret = self.if_routine_present("SYSPROC", "MON_GET_BUFFERPOOL")
-            if not ret:
-                self.result.addSkip(self, "SYSPROC.MON_GET_BUFFERPOOL not present")
-                return 0
+        #I only have 1 BUFFERPOOL 'IBMDEFAULTBP' but we can have more
+        ''' system hidden bp
+        IBMSYSTEMBP4K
+        IBMSYSTEMBP8K
+        IBMSYSTEMBP16K
+        IBMSYSTEMBP32K 
+        '''
+        self.MON_GET_BUFFERPOOL('IBMSYSTEMBP32K')
+        return 0
 
-            select_str = """
-select 
-    * 
-from 
-    table( SYSPROC.MON_GET_BUFFERPOOL('IBMSYSTEMBP32K',-1))  AS SNAP
-""" 
-            #else: # DB2 10.1
-            #    select_str = "select * from table( SYSPROC.SNAP_GET_BP('%s',-1))  AS SNAP" % self.DB2_DATABASE
-            mylog.info("executing \n%s\n" % select_str)
-            stmt2 = ibm_db.exec_immediate(self.conn, select_str)
-            self.mDb2_Cli.describe_columns(stmt2)
-            dictionary = ibm_db.fetch_both(stmt2)
-            if not dictionary:
-                mylog.warn("query is empty")
-            my_keys = []
-            if dictionary:
-                for key in dictionary.keys():
-                    if type(key) == str:
-                        #mylog.info(key)
-                        my_keys.append(key)  
-
-            mylog.info("filtering by 'BOOFERPOOL' = IBMSYSTEMBP32K")
-            table = Texttable()
-            table.set_deco(Texttable.HEADER)
-            table.header(["key", "value"])
-            table.set_header_align(['l', 'l'])
-            table.set_cols_align(['l','l'])
-            table.set_cols_width([55,45])
-            #this query only return 1 row per BP
-            my_list = []
-            while dictionary:
-                for key in my_keys:
-                    my_list.append([key, dictionary[key]])
-                my_list.append(["-------------------------------","------------------------------"])
-                dictionary = ibm_db.fetch_both(stmt2)
-            if sys.version_info[0] == 2:
-                my_list.sort(key=operator.itemgetter(1))
-            table.add_rows(my_list,header=False)
-            mylog.info("\n\n%s\n\n" % table.draw())
-            ibm_db.free_result(stmt2)
-            mylog.info("done")
-        except Exception as _i:
-            self.result.addFailure(self,sys.exc_info())
-            return -1 
+    def test_MON_GET_BUFFERPOOL8K(self):
+        """ SYSPROC.MON_GET_BUFFERPOOL('IBMSYSTEMBP8K',-1) """
+        #I only have 1 BUFFERPOOL 'IBMDEFAULTBP' but we can have more
+        ''' system hidden bp
+        IBMSYSTEMBP4K
+        IBMSYSTEMBP8K
+        IBMSYSTEMBP16K
+        IBMSYSTEMBP32K 
+        '''
+        self.MON_GET_BUFFERPOOL('IBMSYSTEMBP8K')
         return 0
 
     def test_MON_GET_CONNECTION(self):
@@ -499,21 +477,27 @@ FROM
             while dictionary:
                 for key in my_keys:
                     if dictionary[key] not in [0, None]:
-                        my_list.append([key, dictionary[key]])
+                        if key in ['TOTAL_RQST_TIME', 
+                                   'TOTAL_APP_RQST_TIME', 
+                                   'TOTAL_CPU_TIME',
+                                   'CLIENT_IDLE_WAIT_TIME']:
+                            val = "{:,}".format(dictionary[key])
+                        else:
+                            val = dictionary[key]
+                        my_list.append([key, val])
                 my_list.append(["-------------------------------","------------------------------"])
                 dictionary = ibm_db.fetch_both(stmt2)
             #my_list.sort(key=operator.itemgetter(1))
             table.add_rows(my_list, header=False)
             mylog.info("\n\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt2)
-            mylog.info("done")
         except Exception as _i:
             self.result.addFailure(self,sys.exc_info())
             return -1 
         return 0
 
 
-    def test_mon_containers(self):
+    def test_mon_get_container(self):
         mylog.info ("MON_GET_CONTAINER")
         try:
             select_str = """
@@ -535,7 +519,7 @@ ORDER BY
                 'l','r','r','r',
                 'l','r',
                 'r',
-                "l"])
+                'r'])
             header_list = ["TYPE",
                           "CONTAINER_NAME",
                           "TBSP_NAME",
@@ -548,10 +532,11 @@ ORDER BY
                           "USABLE_PAGES",
                           "PAGES_WRITTEN"]
             table.set_cols_dtype(['t' for _i in header_list])
-            table.set_header_align(['l' for _i in header_list])
+            table.set_header_align(table._align)
             table.header(header_list)
-            table.set_cols_width( [15,52,19,5,8,10,8,10,10,13,15])
-            len_cont_name = 0
+            table.set_cols_width( [15,52,19,15,12,14,8,10,10,13,15])
+            len_cont_name = 10
+            one_dictionary = None
             while dictionary:
                 one_dictionary = dictionary
                 cont_name = dictionary['CONTAINER_NAME']
@@ -563,18 +548,21 @@ ORDER BY
                   cont_name, 
                   dictionary['TBSP_NAME'],
                   dictionary['POOL_READ_TIME'],
-                  dictionary['TOTAL_PAGES'],
+                  "{:,}".format(dictionary['TOTAL_PAGES']),
                   self.human_format(dictionary['FS_TOTAL_SIZE']),
                   self.human_format(dictionary['FS_USED_SIZE']),
                   dictionary['DB_STORAGE_PATH_ID'] if dictionary['DB_STORAGE_PATH_ID'] else "",
-                  dictionary['PAGES_READ'],
-                  dictionary['USABLE_PAGES'],
+                  "{:,}".format(dictionary['PAGES_READ']),
+                  "{:,}".format(dictionary['USABLE_PAGES']),
                   dictionary['PAGES_WRITTEN']]
                 table.add_row(my_list)
                 dictionary = ibm_db.fetch_both(stmt1)
+
             table._width[1] = len_cont_name +1
             mylog.info("\n%s\n\n" % table.draw())
-            self.print_keys(one_dictionary, human_format=True)
+
+            if one_dictionary:
+                self.print_keys(one_dictionary, human_format=True)
 
             ibm_db.free_result(stmt1)
 
@@ -694,13 +682,12 @@ from
             while dictionary:
                 #mylog.info("%s  " % (pprint.pformat(dictionary)))
                 if dictionary['APPL_NAME'] == "Python_ibm_db_test" :
-                    self.print_keys(dictionary)
+                    self.print_keys(dictionary, print_0=False)
                 #else:
                 #    self.print_keys(dictionary)
                 dictionary = ibm_db.fetch_both(stmt2)
             ibm_db.free_result(stmt2)
 
-            mylog.info("done")
         except Exception as _i:
             self.result.addFailure(self,sys.exc_info())
             return -1
@@ -714,40 +701,30 @@ from
                 select_str = """
 select * 
 from 
-    table( SYSPROC.SNAP_GET_APPL('SAMPLE',-1))  AS SNAP
-"""
+    table( SYSPROC.SNAP_GET_APPL('%s',-1))  AS SNAP
+""" % self.getDB2_DATABASE()
             else: # DB2 10.1
                 select_str = """
 select * 
 from 
-    table(SYSPROC.SNAPSHOT_APPL('SAMPLE',-1))  AS SNAP
-"""
+    table(SYSPROC.SNAPSHOT_APPL('%s',-1))  AS SNAP
+""" % self.getDB2_DATABASE()
 
             mylog.info("executing \n%s\n" % select_str)
             stmt2 = ibm_db.exec_immediate(self.conn, select_str)
             self.print_cursor_type(stmt2)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
-            #mylog.info("dictionary keys %s" % dictionary.keys())
-            #my_keys = []
-            #for key in dictionary.keys():
-            #    if type(key) == str:
-            #        #mylog.info(key)
-            #        my_keys.append(key)
 
             while dictionary:
-                mylog.info("ROWS_READ %s if not zero will display details" % dictionary['ROWS_READ'])
                 if dictionary['ROWS_READ'] != 0:
+                    mylog.debug("ROWS_READ %s if not zero will display details" % dictionary['ROWS_READ'])
                     #for key in my_keys:
-                    self.print_keys(dictionary)
+                    self.print_keys(dictionary, human_format=True, print_0=False)
                     if dictionary["LOCKS_HELD"] != 0 or dictionary["LOCKS_WAITING"] != 0:
-                        mylog.warn ("LOCKS_HELD %s !=0 or LOCKS_WAITING %s !=0 " % (
+                        mylog.warning ("LOCKS_HELD %s !=0 or LOCKS_WAITING %s !=0 " % (
                             dictionary["LOCKS_HELD"],
                             dictionary["LOCKS_WAITING"]))
-                    mylog.info("")
-                    mylog.info("")
-                #mylog.info("%s  " % (pprint.pformat(dictionary)))
-                #mylog.info("TOTAL_EXEC_TIME %s, STMT_TEXT %s  " % (dictionary['TOTAL_EXEC_TIME'],dictionary['STMT_TEXT']))
                 dictionary = ibm_db.fetch_both(stmt2)
 
             ibm_db.free_result(stmt2)
@@ -770,13 +747,15 @@ from
             select_str = """
 select * 
 from 
-    TABLE( SYSPROC.SNAP_GET_STMT('SAMPLE',-1))  AS SNAP
-"""
+    TABLE( SYSPROC.SNAP_GET_STMT('%s',-1))  AS SNAP
+""" % self.getDB2_DATABASE()
+
             mylog.info("executing \n\n%s\n\n" % select_str)
             stmt2 = ibm_db.exec_immediate(self.conn, select_str)
             dictionary = ibm_db.fetch_both(stmt2)
             while dictionary:
-                self.print_keys(dictionary)
+                if dictionary['STMT_TYPE'] != 'STMT_TYPE_UNKNOWN':
+                    self.print_keys(dictionary, human_format=True, print_0=False)
                 dictionary = ibm_db.fetch_both(stmt2)
             ibm_db.free_result(stmt2)
 

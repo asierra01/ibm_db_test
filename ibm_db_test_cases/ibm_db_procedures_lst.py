@@ -17,8 +17,8 @@ __all__ = ['Procedure_Lst']
 
 class Procedure_Lst(CommonTestCase):
 
-    def __init__(self, testName, extraArg=None):
-        super(Procedure_Lst, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Procedure_Lst, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Procedure_Lst, self).runTest()
@@ -37,7 +37,7 @@ class Procedure_Lst(CommonTestCase):
 
     def test_procedures_details(self):
         select_str = """
-SELECT
+SELECT 
     PROCEDURE_SCHEM,
     PROCEDURE_NAME,
     ORDINAL_POSITION,
@@ -47,9 +47,13 @@ SELECT
     BUFFER_LENGTH
 FROM 
     SYSIBM.SQLPROCEDURECOLS 
-ORDER BY 
+
+
+ORDER BY
     PROCEDURE_SCHEM,
-    PROCEDURE_NAME 
+    PROCEDURE_NAME,
+    ORDINAL_POSITION
+
 """
         mylog.info("executing \n%s" % select_str)
         statement = ibm_db.exec_immediate(self.conn, select_str)
@@ -58,33 +62,98 @@ ORDER BY
         self.mDb2_Cli.describe_columns(statement)
         table_proc = Texttable()
         table_proc.set_deco(Texttable.HEADER)
-        str_header = "POS SCHEMA.NAME COLUMN_NAME TYPE_NAME     DATA_TYPE      BUFFER_LENGTH"
+        str_header = "POS SCHEMA.NAME COLUMN_NAME TYPE_NAME DATA_TYPE BUFFER_LENGTH"
         header_list = str_header.split()
         table_proc.header(header_list)
         table_proc.set_header_align(["l", "l", "l", "l", "r", "r"])
         table_proc.set_cols_align(["l", "l", "l", "l", "r", "r"])
         table_proc.set_cols_width([5, 42, 35, 23, 20, 20])
 
+        if not dictionary:
+            mylog.warning("SYSIBM.SQLPROCEDURECOLS returned empty")
+            ibm_db.free_result(statement)
+            return 0
+            
+        my_list = []
         while dictionary:
-            old_ord = dictionary['ORDINAL_POSITION']
+            my_list.append(dictionary)
+            dictionary = ibm_db.fetch_both(statement)
+
+        list_len = len(my_list)
+        #old_ord = 0
+        old_fullname = ""
+        max_fullname_len = 0
+        my_row_lists = []
+        my_grouped = []
+        my_grouped_list =[]
+
+        for cont, dictionary in enumerate(my_list):
+            if cont > 0:
+                #old_ord = my_list[cont-1]['ORDINAL_POSITION']
+                old_fullname = "%s.%s" %(
+                        my_list[cont-1]['PROCEDURE_SCHEM'],
+                        my_list[cont-1]['PROCEDURE_NAME'])
+
+            else:
+                pass
+                #old_ord = 0
+
             buffer_len = "{:,}".format(dictionary['BUFFER_LENGTH'])
+            fullname = "%s.%s" %(
+                        dictionary['PROCEDURE_SCHEM'],
+                        dictionary['PROCEDURE_NAME'])
+
+            if len(fullname) > max_fullname_len:
+                max_fullname_len = len(fullname)
+
             my_row = [
                      dictionary['ORDINAL_POSITION'],
-                     "%s.%s" %(
-                         dictionary['PROCEDURE_SCHEM'],
-                         dictionary['PROCEDURE_NAME']
-                     ),
+                     fullname,
                      dictionary['COLUMN_NAME'] ,
                      dictionary['TYPE_NAME'],
                      dictionary['DATA_TYPE'],
                      buffer_len]
-            table_proc.add_row(my_row)
-            dictionary = ibm_db.fetch_both(statement)
-            if dictionary:
-                if dictionary['ORDINAL_POSITION'] <= old_ord:
-                    my_row = ["" for _i in range(len(header_list))]
-                    table_proc.add_row(my_row)
 
+            if old_fullname != fullname:
+                my_grouped_list.append(my_grouped)
+                my_grouped = []
+
+
+            my_grouped.append(my_row)
+
+        my_grouped_list.append(my_grouped)
+        my_grouped_list_ordered = []
+        import copy
+        for grouped in my_grouped_list: 
+            if grouped:
+                if grouped[0][0] != grouped[-1][0]:
+                    dynamic_group = copy.copy(grouped)
+
+                    while dynamic_group:
+                        new_list = []
+                        grouped = copy.copy(dynamic_group)
+                        for item in grouped:
+                            if item not in new_list:
+                                new_list.append(item)
+                                dynamic_group.remove(item)
+
+                        if new_list not in my_grouped_list_ordered:
+                            my_grouped_list_ordered.append(new_list)
+                else:
+                    my_grouped_list_ordered.append(grouped)
+
+        #my_row_lists = []
+        my_row_blank = ["" for _i in range(len(header_list))]
+        for group in my_grouped_list_ordered:
+            my_row_lists.extend(group)
+            my_row_lists.append(my_row_blank)
+
+        #import pprint
+        #mylog.info("\n%s" % pprint.pformat(my_grouped_list_ordered))
+
+        table_proc.add_rows(my_row_lists, header=False)
+
+        table_proc._width[1] = max_fullname_len
         mylog.info("\n%s" % table_proc.draw())
         ibm_db.free_result(statement)
 
@@ -156,7 +225,7 @@ ORDER BY
                 old_proc_name = ""
                 max_name_size = 0
                 max_type_size = 0
-                max_len_size  = 0
+                max_len_size  = 10
                 for values in my_list:
                     if len(values['NAME']) > max_name_size :
                         max_name_size = len(values['NAME'])
@@ -164,17 +233,13 @@ ORDER BY
                     if len(values['TYPE']) > max_type_size :
                         max_type_size = len(values['TYPE'])
 
-                    if len(str(values['LEN'])) > max_len_size :
-                        max_len_size = len(str(values['LEN']))
 
                 #mylog.info("max_size %d" % max_size)
                 NAME_filler = " " * (max_name_size-4)
                 TYPE_filler = " " * (max_type_size-4)
-                LEN_filler  = " " * (max_len_size-2)
-                my_str += "POS NAME%s TYPE%s LEN%s NULLABLE  SQL_DATA_TYPE       COLUMN_TYPE\n" % (
+                my_str += "POS NAME%s TYPE%s        LEN  NULLABLE  SQL_DATA_TYPE       COLUMN_TYPE\n" % (
                     NAME_filler,
-                    TYPE_filler,
-                    LEN_filler)
+                    TYPE_filler)
                 for values in my_list:
                     name = "%s" % values["NAME"]
                     blank_filler = max_name_size-(len(name))
@@ -184,7 +249,7 @@ ORDER BY
                     blank_filler = max_type_size-(len(type_))
                     type_ += ' ' * blank_filler
 
-                    len_ = "%s" % str(values["LEN"])
+                    len_ = "% 10s" % str(values["LEN"])
                     blank_filler = max_len_size-(len(len_))
                     len_ += ' ' * blank_filler
 
@@ -225,6 +290,7 @@ ORDER BY
             table_proc.header(header_list)
             table_proc.set_cols_width( [42, 15, 16, 20, 10, 35])
             table_proc.set_header_align(["l" for _i in header_list])
+            max_len = 0
             while dictionary:
                 cont += 1
                 #if dictionary['NUM_INPUT_PARAMS'] != 0:
@@ -237,6 +303,8 @@ ORDER BY
                     dictionary['PROCEDURE_NAME']
                 )
                 proc_schema_and_name = proc_schema_and_name.rstrip()
+                if len(proc_schema_and_name) > max_len:
+                    max_len = len(proc_schema_and_name)
                 my_row = [#NUM_INPUT_PARAMS_str,
                           proc_schema_and_name,
                           dictionary['NUM_RESULT_SETS'],
@@ -249,6 +317,7 @@ ORDER BY
                 dictionary = ibm_db.fetch_assoc(proc)
                 if cont == 800:
                     dictionary = False
+            table_proc._width[0] = max_len
             mylog.info("\n%s" % table_proc.draw())
 
             ibm_db.free_result(proc)

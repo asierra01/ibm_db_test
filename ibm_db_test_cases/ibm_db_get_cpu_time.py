@@ -18,8 +18,8 @@ __all__ = ['GetCPUTime']
 class GetCPUTime(CommonTestCase):
     """GetCPUTime"""
 
-    def __init__(self, testname, extraArg=None):
-        super(GetCPUTime, self).__init__(testname, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(GetCPUTime, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         if self.mDb2_Cli is None:

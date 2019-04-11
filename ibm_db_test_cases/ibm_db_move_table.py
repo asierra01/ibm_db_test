@@ -4,9 +4,8 @@ from __future__ import absolute_import
 import sys
 
 import ibm_db
-from  ibm_db_test_cases import CommonTestCase
+from  . import CommonTestCase
 from utils.logconfig import mylog
-from texttable import Texttable
 from multiprocessing import Value
 from ctypes import c_bool
 
@@ -17,8 +16,8 @@ __all__ = ['MoveTable']
 class MoveTable(CommonTestCase):
     """SYSPROC.ADMIN_MOVE_TABLE"""
 
-    def __init__(self, testName, extraArg=None):
-        super(MoveTable, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(MoveTable, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         with execute_once.get_lock():

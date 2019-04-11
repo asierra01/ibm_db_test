@@ -3,7 +3,7 @@ import sys
 import ibm_db
 from texttable import Texttable
 
-from ibm_db_test_cases import CommonTestCase
+from . import CommonTestCase
 from utils.logconfig import mylog
 import pprint
 import platform
@@ -25,8 +25,8 @@ class ClientInfoTest(CommonTestCase):
     """test for ibm_db.client_info
     """
 
-    def __init__(self, testName, extraArg=None):
-        super(ClientInfoTest, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(ClientInfoTest, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(ClientInfoTest, self).runTest()
@@ -65,7 +65,7 @@ class ClientInfoTest(CommonTestCase):
             client_info = None
             if conn:
                 client_info = ibm_db.client_info(conn)
-            mylog.info("client_info '%s'" % client_info)
+            mylog.debug("client_info '%s'" % client_info)
             table = Texttable()
             table.set_deco(Texttable.HEADER)
             table.set_header_align(['l', 'l'])

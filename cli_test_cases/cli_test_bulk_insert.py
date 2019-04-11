@@ -541,8 +541,8 @@ executing %s
                                 self.sqlstmt_reorg,
                                 SQL_NTS)
         self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, "sqlstmt_reorg SQLExecDirect")
-        if rc == SQL_ERROR:
-            return SQL_ERROR
+        #if rc == SQL_ERROR:
+        #    return SQL_ERROR
 
         mylog.info("""
 executing %s
@@ -555,8 +555,8 @@ executing %s
             clirc = self.SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_ROLLBACK)
             self.DBC_HANDLE_CHECK(self.localhdbc, clirc,  "SQL_ROLLBACK SQLEndTran")
 
-            self.close()
-            return SQL_ERROR
+            #self.close()
+            #return SQL_ERROR
         return 0
 
     def bulkinsert(self):

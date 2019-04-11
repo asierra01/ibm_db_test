@@ -1,6 +1,7 @@
 """SYSIBMADM.%"""
 import ibm_db
 import sys
+import copy
 from . import CommonTestCase
 from utils.logconfig import mylog
 from texttable import Texttable
@@ -12,14 +13,14 @@ __all__ = ['Table_lists']
 if sys.version_info > (3,):
     unicode = str
     long = int
-execute_once = Value(c_bool,False)
 
+execute_once = Value(c_bool,False)
 
 class Table_lists(CommonTestCase):
     """table list SYSIBMADM.%"""
 
-    def __init__(self,testName, extraArg=None):
-        super(Table_lists, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Table_lists, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Table_lists, self).runTest()
@@ -30,6 +31,7 @@ class Table_lists(CommonTestCase):
                 mylog.debug("we already ran")
                 return
             execute_once.value = True
+        self.print_describe_cols = True
         self.test_list_SYSIBMADM()
         self.test_list_SAMPLE_DB2_USER_tbls()
         self.test_list_SAMPLE_tbls()
@@ -64,10 +66,15 @@ class Table_lists(CommonTestCase):
             table.header(header_str.split())
             table.set_cols_width( [70])
 
+            max_name_len = 0
             while dictionary:
-                table.add_row(["SYSIBMADM."+dictionary['TABLE_NAME']])
+                name = "SYSIBMADM."+dictionary['TABLE_NAME']
+                if len(name) > max_name_len:
+                    max_name_len = len(name)
+                table.add_row([name])
                 dictionary = ibm_db.fetch_both(tbls_stament)
 
+            table._width[0] = max_name_len
             mylog.info("\n%s" % table.draw())
             ibm_db.free_result(tbls_stament)
 
@@ -88,7 +95,7 @@ ORDER BY
     TABLE_SCHEMA, 
     TABLE_NAME
 """
-            table_present  = self.if_table_present_common(self.conn, "ALL_CONSTRAINTS", "SYSIBMADM")
+            table_present  = self.if_table_present(self.conn, "ALL_CONSTRAINTS", "SYSIBMADM")
             if not table_present:
                 mylog.warn("Table not present SYSIBMADM.ALL_CONSTRAINTS")
                 self.result.addSkip(self, "Table not present SYSIBMADM.ALL_CONSTRAINTS")
@@ -138,11 +145,15 @@ ORDER BY
             self.mDb2_Cli.describe_columns(tbls_stament)
             dictionary = ibm_db.fetch_both(tbls_stament)
 
-
+            max_name_len = 0
             while dictionary:
-                table.add_row([dictionary['TABLE_SCHEM']+"."+dictionary['TABLE_NAME']])
+                name = dictionary['TABLE_SCHEM']+"."+dictionary['TABLE_NAME']
+                if len(name) > max_name_len:
+                    max_name_len = len(name)
+                table.add_row([name])
                 dictionary = ibm_db.fetch_both(tbls_stament)
 
+            table._width[0] = max_name_len
             mylog.info("\n%s\n" % table.draw())
             ibm_db.free_result(tbls_stament)
         except Exception as _i:
@@ -185,7 +196,7 @@ ORDER BY
         table.set_cols_width( [13, 16, 45, 10, 12, 12, 10, 8, 10])
 
         try:
-            table_present = self.if_table_present_common(self.conn, "ALL_TABLES", "SYSPUBLIC")
+            table_present = self.if_table_present(self.conn, "ALL_TABLES", "SYSPUBLIC")
             if not table_present:
                 mylog.warn("table SYSPUBLIC.ALL_TABLES deosent exist")
                 self.result.addSkip(self, "table SYSPUBLIC.ALL_TABLES doesn't exist")
@@ -413,6 +424,7 @@ ORDER BY
             self.mDb2_Cli.describe_columns(tbls_stament)
             dictionary = ibm_db.fetch_both(tbls_stament)
 
+            max_long_name = 44
             if dictionary:
                 old_table_name = dictionary['OBJECTNAME']
                 table_name = dictionary['OBJECTNAME']
@@ -454,8 +466,12 @@ ORDER BY
                         break
                 old_table_name = table_name
 
+                if len(my_row[0]) > max_long_name:
+                    max_long_name = len(my_row[0])
+
                 table.add_row(my_row)
 
+            table._width[0] = max_long_name
             mylog.info("\n%s" % table.draw())
             ibm_db.free_result(tbls_stament)
 
@@ -474,7 +490,7 @@ ORDER BY
         table.set_cols_align(['l','l', 'l', 'l'])
         table.header(['full name', 'PRIVILEGE', 'GRANTOR', 'GRANTEE'])
         table.set_cols_width([38, 60, 15, 15])
-
+        max_len = 38
         try:
 
             pattern  = "%s" % self.getDB2_USER()
@@ -505,9 +521,11 @@ ORDER BY
                     else:
                         table_name = ""
                 old_table_name = table_name
-
+                if len(my_row[0]) > max_len:
+                    max_len = len(my_row[0])
                 table.add_row(my_row)
 
+            table._width[0] = max_len
             mylog.info("\n\n%s\n" % table.draw())
             ibm_db.free_result(tbls_stament)
 
@@ -610,7 +628,6 @@ ORDER BY
             ]
         tbls_stament = ibm_db.tables(self.conn, "", "SYSIBMADM", "%", None)
         dictionary = ibm_db.fetch_both(tbls_stament)
-        import copy
         my_new_queries = copy.deepcopy(queries)
         while dictionary:
             if dictionary['TABLE_NAME'] in my_new_queries:
@@ -648,7 +665,6 @@ ORDER BY
             ]
         tbls_stament = ibm_db.tables(self.conn, "", "SYSIBM", "%", None)
         dictionary = ibm_db.fetch_both(tbls_stament)
-        import copy
         my_new_queries = copy.deepcopy(queries)
         while dictionary:
             if dictionary['TABLE_NAME'] in my_new_queries:
@@ -675,6 +691,7 @@ ORDER BY
 
     def get_type(self, head):
 
+        #mylog.info("%s" % self.mDb2_Cli.describe_cols[0])
         for col in self.mDb2_Cli.describe_cols:
             if head == col['name']:
                 return col['sql_type']
@@ -683,22 +700,27 @@ ORDER BY
         """
         Parameters
         ----------
-        head       : :obj:`str`
-        cols_width : :obj:`list`
-        cols_align : :obj:`list`
+        head         : :obj:`str`
+        cols_width   : :obj:`list`
+        cols_align   : :obj:`list`
         header_align : :obj:`list`
 
         """
+
         if not self.mDb2_Cli.describe_cols:
             mylog.warn("describe_cols is None")
+            self.print_describe_cols = False
+
         for col in self.mDb2_Cli.describe_cols:
-            if head == self.mDb2_Cli.encode_utf8(col['name']):
-                mylog.debug("head : '%s' col : '%s' %s" % (
+            mylog.debug("head : '%s' col : '%s' %s" % (
                     head,
                     col,
-                    self.mDb2_Cli.encode_utf8(col['name'])))
+                    col['name']))
+            if head == col['name']:
+
                 display_size = col['name_size']+1
                 sql_type     = col['sql_type']
+
                 if sql_type == 'SQL_DECIMAL':
                     if display_size > 8:
                         cols_width.append(display_size)
@@ -756,19 +778,23 @@ ORDER BY
                 #header_dict[head] = col['pcbColDef']
                 #self.mDb2_Cli.describe_cols.remove(col)
                 break
-        #mylog.info("%s" % cols_width)
+        mylog.debug("header_align %s" % header_align)
+        #mylog.info("cols_width %s" % cols_width)
 
 
     def process_dict(self, header_lst, dictionary, my_row, header_dict, human_readable_columns, numeric_value_columns):
+        #mylog.info("%s" % header_lst)
         for head in header_lst:
             value = dictionary[head]
+            #if head == 'TBSP_TOTAL_SIZE_KB':
+            #    mylog.info("%s %s %s" % (head, value, numeric_value_columns))
             if head in ['START_TIME', 'END_TIME']:
                 str_time = value
                 if str_time is not None:
                     year  = str_time[0:4]
                     month = str_time[4:6]
                     day   = str_time[6:8]
-    
+
                     hh  = str_time[8:10]
                     mm  = str_time[10:12]
                     str_start_time = "%s-%s-%s %s:%s" % (year, month, day, hh, mm)
@@ -796,12 +822,21 @@ ORDER BY
                 continue
 
             elif head in human_readable_columns:
-                mylog.debug("the head is %s in %s", head, human_readable_columns)
+                #mylog.info("the head is %s in %s", head, human_readable_columns)
                 my_row.append(self.human_format(value))
                 continue
             elif head in numeric_value_columns:
-                mylog.debug("{} {}" , head, value)
+                #mylog.info("%s %s" % (head, value))
                 value = long(value)
+                if head.endswith("_KB"):
+                    mylog.debug("the head is %s in %s=%s" %  (
+                        head,
+                        human_readable_columns,
+                        self.human_format(value, multiply=1024)
+                        ))
+                    my_row.append(self.human_format(value, multiply=1024))
+                    continue
+
                 my_row.append("{:,}".format(value))
                 continue
 
@@ -820,7 +855,7 @@ ORDER BY
                         #pass
                         header_dict[head] = 7
                 else:
-                    if isinstance(value, str) or isinstance(value, unicode): 
+                    if isinstance(value, str) or isinstance(value, unicode):
                         if len(value) > header_dict[head]:
                             header_dict[head] = len(value)+1
                     else:
@@ -832,6 +867,7 @@ ORDER BY
                 pass  
 
     def remake_the_query(self, sql_str, schema, table_name, numeric_value_columns):
+        numeric_value_columns_local = copy.copy(numeric_value_columns)
         if table_name == 'MON_CONNECTION_SUMMARY' or True:
             sql_str1 = "SELECT "
             process_DECFLOAT = False
@@ -841,10 +877,11 @@ ORDER BY
                 #self.print_keys(dictionary)
                 if dictionary['TYPE_NAME'] == 'DECFLOAT' and dictionary['BUFFER_LENGTH'] == 16:
                     process_DECFLOAT = True
+                    mylog.warning("casting it DECIMAL (12,4) to TYPE_NAME %s %s" % (dictionary['TYPE_NAME'], dictionary['BUFFER_LENGTH']))
                     #self.print_keys(dictionary)
-                    if dictionary['COLUMN_NAME'] in numeric_value_columns:
-                        numeric_value_columns.remove(dictionary['COLUMN_NAME'])
-                    sql_str1 += "\n, CAST({field} as DECIMAL (12,4)) {field}".format(field=dictionary['COLUMN_NAME'])
+                    if dictionary['COLUMN_NAME'] in numeric_value_columns_local:
+                        numeric_value_columns_local.remove(dictionary['COLUMN_NAME'])
+                    sql_str1 += "\n, CAST({field} as BIGINT) {field}".format(field=dictionary['COLUMN_NAME'])
                 else:
                     sql_str1 += "\n, " + dictionary['COLUMN_NAME']
 
@@ -853,7 +890,7 @@ ORDER BY
                 sql_str1 += "\n FROM     \n%s.%s" % (schema, table_name)
                 sql_str1 = sql_str1.replace("SELECT \n,", "SELECT \n")
                 sql_str1 = sql_str1.replace("\n, ", ", \n")
-                mylog.info("executing \n%s\n" % sql_str1)
+                mylog.debug("executing \n%s\n" % sql_str1)
                 sql_str = sql_str1
             mylog.info("executing \n%s\n" % sql_str)
             return sql_str
@@ -868,9 +905,13 @@ ORDER BY
         ----------
         schema     : :obj:`str`
         table_name : :obj:`str`
-        """ 
+        """
+
         numeric_value_columns = ['TBSP_TOTAL_PAGES',
+                                 'TOTAL_PAGES',
+                                 'TBSP_USED_PAGES',
                                  'TBSP_USED_SIZE_KB',
+                                 'TBSP_FREE_SIZE_KB',
                                  'TBSP_USABLE_PAGES',
                                  'TBSP_PAGE_TOP' ,
                                  'TBSP_FREE_PAGES',
@@ -879,6 +920,7 @@ ORDER BY
                                  'DATA_LOGICAL_READS',
                                  'TOTAL_LOGICAL_READS',
                                  'INDEX_LOGICAL_READS']
+
 
         try:
             predicate = ""
@@ -921,8 +963,8 @@ FROM
             header_align = []
             cols_dtype  = []
             cols_align = []
-            human_readable_columns = ['POOL_CUR_SIZE', 
-                                      'POOL_WATERMARK', 
+            human_readable_columns = ['POOL_CUR_SIZE',
+                                      'POOL_WATERMARK',
                                       'POOL_CONFIG_SIZE',
                                       'FS_TOTAL_SIZE',
                                       'FS_USED_SIZE']
@@ -936,7 +978,18 @@ FROM
                 self.internal_set_cols_align(head, cols_width, cols_align, header_align)
 
             table.set_cols_dtype(cols_dtype)
-            table.set_header_align(header_align)
+            if header_align:
+                table.set_header_align(header_align)
+            else:
+                mylog.warn("header_align is empty")
+                header_align = ["l" for _i in header_lst]
+
+            if not cols_align:
+                cols_align = ["l" for _i in header_lst]
+
+            if not cols_width:
+                cols_width = [20 for _i in header_lst]
+
 
             #table.set_cols_width(cols_width)
             #mylog.info(header_lst)
@@ -959,10 +1012,10 @@ FROM
                     return -1
 
             if cont_rec != 1:
-                mylog.debug("cols_width  %s" % cols_width)
-                mylog.debug("header_dict %s " % list(header_dict.values()))
+                mylog.info("cols_width  %s" % cols_width)
+                mylog.info("header_dict %s " % list(header_dict.values()))
             else:
-                mylog.debug("cols_width  %s" % cols_width)
+                mylog.info("cols_width  %s" % cols_width)
 
             for cont, head in enumerate(header_lst):
                 if cols_width[cont] > header_dict[head] and \
@@ -1008,8 +1061,6 @@ Schema.TableName = "%s"."%s"
                     one_dic['TOTAL_MEMORY'] *= 1024 * 1024
                 elif table_name == 'LOG_UTILIZATION':
                     pass
-                    #one_dic['TOTAL_LOG_AVAILABLE_KB'] *= 1024
-                    #one_dic['TOTAL_LOG_USED_KB'] *= 1024
                 self.print_keys(one_dic, human_format=True)
 
             ibm_db.free_result(stmt2)
@@ -1030,7 +1081,7 @@ Schema.TableName = "%s"."%s"
         table.set_header_align(['l','l','l'])
         table.header(['full name', 'remarks', 'type'])
         table.set_cols_width([45, 75, 20])
-
+        max_name_len = 45
         try:
 
             #pattern  = "%s" % self.getDB2_USER()
@@ -1053,8 +1104,13 @@ Schema.TableName = "%s"."%s"
                           dictionary['TABLE_TYPE'],
                           ]
                 table.add_row(my_row)
+
+                if len(my_row[0]) > max_name_len:
+                    max_name_len = len(my_row[0])
+
                 dictionary = ibm_db.fetch_both(tbls_stament)
 
+            table._width[0] = max_name_len
             mylog.info("\n%s" % table.draw())
             ibm_db.free_result(tbls_stament)
 
@@ -1099,7 +1155,7 @@ Schema.TableName = "%s"."%s"
         """this is helpful for getting admin information on tables from a particular schema
         """
         try:
-            table_present = self.if_table_present_common(self.conn, "DBA_TABLES", "SYSIBMADM")
+            table_present = self.if_table_present(self.conn, "DBA_TABLES", "SYSIBMADM")
             if not table_present:
                 mylog.warn("table SYSIBMADM.DBA_TABLES doesn't exist")
                 self.result.addSkip(self,"table SYSIBMADM.DBA_TABLES doesn't exist")

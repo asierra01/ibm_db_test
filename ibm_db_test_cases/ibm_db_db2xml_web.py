@@ -18,12 +18,13 @@ __all__ = ['DB2XML_WEB']
 class DB2XML_WEB(CommonTestCase):
     """DB2XML_WEB jar test"""
 
-    def __init__(self,testName, extraArg=None):
-        super(DB2XML_WEB, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(DB2XML_WEB, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(DB2XML_WEB, self).runTest()
         if self.conn is None:
+            mylog.warn("conn is None")
             return
 
         with execute_once.get_lock():
@@ -40,8 +41,8 @@ platform.  SQLSTATE=42724
 """ % self.server_info.DBMS_NAME)
             return
         self.test_createschema_DB2XML()
-        self.test_unregister_java_jar()
-        self.test_register_java_jar()
+        #self.test_unregister_java_jar_by_storeproc()
+        self.test_register_java_jar_by_storeproc()
         self.test_HTTPGETCLOBXML_present()
         self.test_register_function()
         self.test_DB2XML_WEB()
@@ -65,8 +66,8 @@ AUTHORIZATION
             return -1
 
         return 0
-
-    def test_unregister_java_jar(self):
+    '''
+    def test_unregister_java_jar_by_commandline(self):
         try:
             cmds = ["db2 connect to sample",
                     """db2 "CALL sqlj.remove_jar('%s.MY_REST_UDF_JAR')" """ % self.getDB2_USER(),
@@ -78,7 +79,69 @@ AUTHORIZATION
             return -1
 
         return 0
+    '''
+    def test_unregister_java_jar_by_storeproc(self):
+        try:
+            sql_str = """CALL sqlj.remove_jar('%s.MY_REST_UDF_JAR')" """ % self.getDB2_USER()
+            mylog.info("executing \n%s\n" % sql_str)
 
+
+            stmt1 = ibm_db.callproc(self.conn, "sqlj.remove_jar", ('%s.MY_REST_UDF_JAR' % self.getDB2_USER(), ))
+            ibm_db.free_stmt(stmt1)
+
+        except Exception as _i:
+            self.result.addFailure(self, sys.exc_info())
+            return -1
+
+        return 0
+
+    def try_to_replace(self): 
+        try:
+            sql_str = """CALL sqlj.DB2_REPLACE_JAR('file:jar/restUDF.jar', '%s.MY_REST_UDF_JAR')" """ % self.getDB2_USER()
+            mylog.info("executing \n%s\n" % sql_str)
+            jar_blob = open ("jar/restUDF.jar", "rb").read()
+            jar_id = '"%s"."MY_REST_UDF_JAR"' % self.getDB2_USER()
+            stmt1 = ibm_db.prepare(self.conn, "CALL sqlj.DB2_REPLACE_JAR (?,?)")
+            ibm_db.bind_param(stmt1, 1, jar_blob,            ibm_db.SQL_PARAM_INPUT, ibm_db.SQL_BLOB)
+            ibm_db.bind_param(stmt1, 2, jar_id)
+            ret = ibm_db.execute(stmt1)
+            mylog.info("ret %s" % ret)
+
+            ibm_db.free_stmt(stmt1)
+        except Exception as _i:
+            self.result.addFailure(self, sys.exc_info())
+            return -1
+
+        return 0
+
+    def test_register_java_jar_by_storeproc(self):
+
+        try:
+            sql_str = """CALL sqlj.db2_install_jar('file:jar/restUDF.jar', '%s.MY_REST_UDF_JAR')" """ % self.getDB2_USER()
+            mylog.info("executing \n%s\n" % sql_str)
+            jar_blob = open ("jar/restUDF.jar", "rb").read()
+            mylog.debug("jar_blob len %d" % len(jar_blob))
+            jar_id = '"%s"."MY_REST_UDF_JAR"' % self.getDB2_USER()
+            mylog.info("%s" % jar_id)
+            stmt1 = ibm_db.prepare(self.conn, "CALL sqlj.db2_install_jar (?,?)")
+            self.mDb2_Cli.describe_parameters(stmt1)
+            ibm_db.bind_param(stmt1, 1, jar_blob, ibm_db.SQL_PARAM_INPUT, ibm_db.SQL_BLOB)
+            ibm_db.bind_param(stmt1, 2, jar_id)
+            ret = ibm_db.execute(stmt1)
+            mylog.debug("ret %s" % ret)
+
+            ibm_db.free_stmt(stmt1)
+        except Exception as _i:
+            if "SQL20201N " in str(_i):
+                ret = self.try_to_replace()
+                if ret == 0:
+                    return 0
+            self.result.addFailure(self, sys.exc_info())
+            return -1
+
+        return 0
+
+    '''
     def test_register_java_jar(self):
 
         try:
@@ -92,7 +155,7 @@ AUTHORIZATION
             return -1
 
         return 0
-
+    '''
     def test_HTTPGETCLOBXML_present(self):
         """
         """
@@ -183,11 +246,11 @@ FROM
                 mylog.warn("Mac doesn't have jdk db2 10.1 working")
                 mylog.warn("%s" % e)
             else:
-                str_e = str(e)
-                str_e_1 = str_e[:100]
-                str_e_2 = str_e[100:200]
-                str_e_3 = str_e[200:] 
-                mylog.error("Exception \n%s\n%s\n%s" % (str_e_1,str_e_2,str_e_3))
+                #str_e = str(e)
+                #str_e_1 = str_e[:100]
+                #str_e_2 = str_e[100:200]
+                #str_e_3 = str_e[200:] 
+                #mylog.error("Exception \n%s\n%s\n%s" % (str_e_1,str_e_2,str_e_3))
                 self.result.addFailure(self,sys.exc_info())
                 return -1
 

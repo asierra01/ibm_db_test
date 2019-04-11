@@ -23,8 +23,8 @@ __all__ = ['PrettyTable']
 class PrettyTable(CommonTestCase):
     """PrettyTable test"""
 
-    def __init__(self, testname, extraarg=None):
-        super(PrettyTable, self).__init__(testname, extraarg)
+    def __init__(self, test_name, extra_arg=None):
+        super(PrettyTable, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(PrettyTable, self).runTest()

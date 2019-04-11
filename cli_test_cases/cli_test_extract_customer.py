@@ -93,8 +93,10 @@ TableType   '%s'
             mylog.info("checking if 'CUSTOMER' table present")
             clirc_fetch = SQL_SUCCESS
             str_CUSTOMER = "CUSTOMER"
+
             if sys.version_info > (3,):
                 str_CUSTOMER = str_CUSTOMER.encode('utf-8','ignore')
+
             while clirc_fetch == SQL_SUCCESS:
                 one_character      = self.encode_utf8(' ')
                 indicator1         = c_int(0)

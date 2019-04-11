@@ -20,8 +20,8 @@ __all__ = ['Get_OS_UserGroups']
 class Get_OS_UserGroups(CommonTestCase):
     """GetUserGroups"""
 
-    def __init__(self, testname, extraArg=None):
-        super(Get_OS_UserGroups, self).__init__(testname, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Get_OS_UserGroups, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Get_OS_UserGroups, self).runTest()

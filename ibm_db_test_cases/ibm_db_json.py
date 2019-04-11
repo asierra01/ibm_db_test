@@ -4,9 +4,6 @@ Register json functions
 """
 from __future__ import absolute_import
 
-import sys
-import ibm_db
-from texttable import Texttable
 
 from . import CommonTestCase
 from utils.logconfig import mylog
@@ -21,8 +18,8 @@ __all__ = ['SpJson']
 class SpJson(CommonTestCase):
     """Store procedure test"""
 
-    def __init__(self, testname, extraarg=None):
-        super(SpJson, self).__init__(testname, extraarg, True)
+    def __init__(self, test_name, extra_arg=None):
+        super(SpJson, self).__init__(test_name, extra_arg, True)
 
     def runTest(self):
         super(SpJson, self).runTest()
@@ -90,7 +87,8 @@ CREATE OR REPLACE FUNCTION JSON_TABLE(
   NO EXTERNAL ACTION
   DISALLOW PARALLEL
   SCRATCHPAD 2048
-  EXTERNAL NAME 'db2json!jsonTable'@
+  EXTERNAL NAME 'db2json!jsonTable'
+@
 
 CREATE OR REPLACE FUNCTION JSON_TYPE(
   INJSON BLOB(16M), INELEM VARCHAR(2048), MAXLENGTH INTEGER) 
@@ -104,7 +102,8 @@ CREATE OR REPLACE FUNCTION JSON_TYPE(
   ALLOW PARALLEL
   RETURNS NULL ON NULL INPUT
   NO EXTERNAL ACTION
-  EXTERNAL NAME 'db2json!jsonType'@
+  EXTERNAL NAME 'db2json!jsonType'
+@
 
 CREATE OR REPLACE FUNCTION JSON_LEN(
   INJSON BLOB(16M), INELEM VARCHAR(2048)) 
@@ -118,7 +117,8 @@ CREATE OR REPLACE FUNCTION JSON_LEN(
   ALLOW PARALLEL
   NO EXTERNAL ACTION
   SCRATCHPAD 2048
-  EXTERNAL NAME 'db2json!jsonLen'@
+  EXTERNAL NAME 'db2json!jsonLen'
+@
 
 CREATE OR REPLACE FUNCTION BSON2JSON(INBSON BLOB(16M)) RETURNS CLOB(16M)
   LANGUAGE C
@@ -130,7 +130,8 @@ CREATE OR REPLACE FUNCTION BSON2JSON(INBSON BLOB(16M)) RETURNS CLOB(16M)
   ALLOW PARALLEL
   NO EXTERNAL ACTION
   SCRATCHPAD 2048
-  EXTERNAL NAME 'db2json!jsonBsonToJson'@
+  EXTERNAL NAME 'db2json!jsonBsonToJson'
+@
 
 CREATE OR REPLACE FUNCTION JSON2BSON(INJSON CLOB(16M)) RETURNS BLOB(16M)
   LANGUAGE C
@@ -142,7 +143,8 @@ CREATE OR REPLACE FUNCTION JSON2BSON(INJSON CLOB(16M)) RETURNS BLOB(16M)
   ALLOW PARALLEL
   NO EXTERNAL ACTION
   SCRATCHPAD 2048
-  EXTERNAL NAME 'db2json!jsonToBson'@
+  EXTERNAL NAME 'db2json!jsonToBson'
+@
 
 CREATE OR REPLACE FUNCTION JSON_GET_POS_ARR_INDEX(
   INJSON BLOB(16M), QUERY VARCHAR(32672) FOR BIT DATA) 
@@ -157,7 +159,8 @@ CREATE OR REPLACE FUNCTION JSON_GET_POS_ARR_INDEX(
   CALLED ON NULL INPUT
   NO EXTERNAL ACTION
   SCRATCHPAD 2048
-  EXTERNAL NAME 'db2json!jsonGetPosArrIndex'@
+  EXTERNAL NAME 'db2json!jsonGetPosArrIndex'
+@
 
 CREATE OR REPLACE FUNCTION JSON_UPDATE(
   INJSON BLOB(16M), INELEM VARCHAR(32672)) 
@@ -172,7 +175,8 @@ CREATE OR REPLACE FUNCTION JSON_UPDATE(
   CALLED ON NULL INPUT
   NO EXTERNAL ACTION
   SCRATCHPAD 2048
-  EXTERNAL NAME 'db2json!jsonUpdate2'@
+  EXTERNAL NAME 'db2json!jsonUpdate2'
+@
 
 CREATE OR REPLACE FUNCTION BSON_VALIDATE(
   INJSON BLOB(16M)) 

@@ -22,8 +22,8 @@ class DB2LKGenerateDDLTest(CommonTestCase):
     CALL SYSPROC.DB2LK_GENERATE_DDL( ?, ?)
     generate DDL on DB2_DATABASE schema DB2_USER
     """
-    def __init__(self, testName, extraArg=None):
-        super(DB2LKGenerateDDLTest, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(DB2LKGenerateDDLTest, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(DB2LKGenerateDDLTest, self).runTest()
@@ -62,7 +62,6 @@ out_OP_TOKEN      '%s' """ % (exec_str, in_str, out_OP_TOKEN))
                                    "SYSPROC.DB2LK_GENERATE_DDL",
                                    (in_str, out_OP_TOKEN,))
             out_OP_TOKEN = stmt[2]
-            self.mDb2_Cli.describe_columns(stmt[0])
             mylog.debug("""
 ibm_db.callproc executed SYSPROC.DB2LK_GENERATE_DDL
 stmt 
@@ -93,7 +92,7 @@ OBJ_NAME,
 SQL_OPERATION 
 FROM SYSTOOLS.DB2LOOK_INFO 
 WHERE OP_TOKEN=? """ 
- 
+
 
             exec_str_log = """
 SELECT 
@@ -107,7 +106,7 @@ FROM
    SYSTOOLS.DB2LOOK_INFO 
 WHERE 
    OP_TOKEN=%s 
-""" % (out_OP_TOKEN)
+""" % out_OP_TOKEN
 
             mylog.info("executing\n%s" % exec_str_log)
             stmt1 = ibm_db.prepare(self.conn, exec_str)
@@ -154,4 +153,3 @@ WHERE
 
         return 0
 
- 

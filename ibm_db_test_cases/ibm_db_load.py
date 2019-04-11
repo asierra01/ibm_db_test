@@ -27,8 +27,8 @@ BATCH_SIZE = 100  # this limit 100 rows the test, but it could be 10000000000
 class Load(CommonTestCase):
     """test for Load"""
 
-    def __init__(self, testName, extraArg=None):
-        super(Load, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Load, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Load, self).runTest()
@@ -94,12 +94,13 @@ WHERE
 
     def test_create_table_dice(self):
         try:
-            if not self.if_table_present_common(self.conn, "DICE", self.getDB2_USER()):
+            if not self.if_table_present(self.conn, "DICE", self.getDB2_USER()):
                 sql_str = """
 CREATE TABLE 
-   DICE ( dice1 SMALLINT, 
-          dice2 SMALLINT )
-"""
+   "%s".DICE 
+   ( dice1 SMALLINT, 
+     dice2 SMALLINT )
+""" % self.getDB2_USER()
                 mylog.info("executing \n%s\n", sql_str)
                 stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
                 ibm_db.commit(self.conn)
@@ -119,17 +120,21 @@ CREATE TABLE
 select 
     count(*) 
 from 
-    DICE
-"""
+    "%s".DICE
+""" % self.getDB2_USER()
             mylog.info("executing \n%s\n" % sql_str)
             stmt2 = ibm_db.exec_immediate(self.conn, sql_str)
             result = ibm_db.fetch_both(stmt2)
-            mylog.info("how many records '%s' in table DICE " % (self.human_format(result[0])))
+            if isinstance(result[0], str):
+                result_0 = int(result[0])
+            else:
+                result_0 = result[0] 
+            mylog.info("how many records '%s' in table DICE " % (self.human_format(result_0)))
             ibm_db.free_result(stmt2)
             total_time = datetime.now()-start_time_count
             mylog.info("time  '%s' result : '%s' " % (
                 total_time, 
-                "{:,}".format(result[0])))
+                "{:,}".format(result_0)))
         except Exception as _i:
             self.result.addFailure(self, sys.exc_info())
             return -1
@@ -137,7 +142,9 @@ from
 
     def test_delete_from_dice(self):
         try:
-            sql_str = "delete  from DICE"
+            sql_str = """
+DELETE FROM "%s".DICE
+"""   % self.getDB2_USER()
             mylog.info("executing \n%s\n" % sql_str)
             stmt2 = ibm_db.exec_immediate(self.conn, sql_str)
             mylog.info("how many deleted %d" % ibm_db.num_rows(stmt2))
@@ -161,9 +168,10 @@ from
         try:
             sql_str = """
 insert into 
-    DICE 
+    "%s".DICE 
 values 
-    (?,?)"""
+    (?,?)
+""" % self.getDB2_USER()
             mylog.info("executing \n%s\n", sql_str)
             stmt = ibm_db.prepare(self.conn, sql_str)
             for _i in range(5):
@@ -187,9 +195,9 @@ values
         try:
             sql_str = """
 alter table 
-    DICE 
+    "%s".DICE 
 ACTIVATE NOT LOGGED INITIALLY
-"""
+""" % self.getDB2_USER()
             mylog.info("executing \n%s\n" , sql_str)
             stmt2 = ibm_db.exec_immediate(self.conn, sql_str)
             #ibm_db.commit(self.conn)
@@ -229,10 +237,10 @@ ACTIVATE NOT LOGGED INITIALLY
 
                 insert_stmt = """
 insert into 
-    DICE (dice1, dice2)
+    "%s".DICE (dice1, dice2)
 values 
     %s
-""" % long_list_insert
+""" % (self.getDB2_USER(), long_list_insert)
                 #mylog.info(insert_stmt)
                 start_time_per_chunk   = datetime.now()
                 mylog.info("about to insert counted '%s'   len (my_list_insert) '%s' sql string len '%s'" % (
@@ -288,7 +296,7 @@ CREATE TABLE
     "%s".TABLE678 ( dice SMALLINT)
 """ % self.getDB2_USER()
 
-            if not self.if_table_present_common(self.conn,"TABLE678", self.getDB2_USER()):
+            if not self.if_table_present(self.conn,"TABLE678", self.getDB2_USER()):
                 mylog.info("executing %s " % sql_str)
                 stmt1 = ibm_db.exec_immediate(self.conn, sql_str)
                 ibm_db.free_result(stmt1)
@@ -316,7 +324,7 @@ CREATE TABLE
                                                      pages directly into the database.
        """
         try:
-            if not self.if_table_present_common(self.conn,"TABLE678", self.getDB2_USER()):
+            if not self.if_table_present(self.conn,"TABLE678", self.getDB2_USER()):
                 sql_str = """
 CREATE TABLE 
     "%s".TABLE678 ( dice smallint)
@@ -345,7 +353,12 @@ FROM
         result = ibm_db.fetch_both(stmt2)
         #rows  = ibm_db.num_rows(stmt2)
         ibm_db.free_result(stmt2)
-        rows = result[0] / 1000000
+        mylog.info("%s" % result)
+        if isinstance(result[0], int):
+            rows = result[0] / 1000000
+        else:
+            rows = int(result[0]) / 1000000
+
 
         total_time = datetime.now()- start_time_count 
         mylog.info("Counted time  '%s' result human_format '%s' \n%s" % (
@@ -362,7 +375,7 @@ FROM
             if not os.path.exists(filename):
                 mylog.warn("file doesnt exist '%s', cant be imported or loaded" % filename)
                 return -1 
-            max_row_to_import = 100000
+            max_row_to_import = 50000
             """
             CREATE PROCEDURE SYSPROC.ADMIN_CMD (CMD CLOB(2097152))
             SPECIFIC SYSPROC.ADMIN_CMD
@@ -440,11 +453,15 @@ FROM
         mylog.info("executing \n%s\n" % exec_str)
         stmt2 = ibm_db.exec_immediate(self.conn,exec_str)
         result = ibm_db.fetch_both(stmt2)
+        if isinstance(result[0], str):
+            result_0 = int(result[0])
+        else:
+            result_0 = result[0]
 
         total_time = datetime.now()-start_time_count
         mylog.info("\n\ntotal_time : '%s'\ncount   : '%s'\n" % (
                        total_time,
-                      "{:,}".format(result[0])))
+                      "{:,}".format(result_0)))
         ibm_db.free_result(stmt2)
 
     def check_previous_load(self):
@@ -688,7 +705,7 @@ MPP_LOAD_SUMMARY      %s
         load data678.csv into table678
         """
         try:
-            if not self.if_table_present_common(self.conn, "TABLE678", self.getDB2_USER()):
+            if not self.if_table_present(self.conn, "TABLE678", self.getDB2_USER()):
                 exec_str = """
 CREATE TABLE 
    "%s".TABLE678 ( dice SMALLINT )

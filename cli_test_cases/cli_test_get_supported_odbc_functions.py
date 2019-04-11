@@ -31,7 +31,7 @@ class GetODBC_SupportedFunctions(Common_Class):
            addressof(self.supported_ALL_ODBC3),
            sizeof(self.supported_ALL_ODBC3)))
 
-        mylog.info("supported_ALL_ODBC3 %s" % self.supported_ALL_ODBC3)
+        mylog.debug("supported_ALL_ODBC3 %s" % self.supported_ALL_ODBC3)
 
         clirc = self.mDb2_Cli.libcli64.SQLGetFunctions( self.mDb2_Cli.hdbc,
                                                             SQL_API_ALL_FUNCTIONS, # SQL_API_ODBC3_ALL_FUNCTIONS,

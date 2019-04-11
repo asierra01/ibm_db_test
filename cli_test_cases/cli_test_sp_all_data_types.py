@@ -230,7 +230,7 @@ PROGRAM TYPE SUB
 EXTERNAL NAME 'spserver!all_data_types'
 """ 
         self.stmt = c_char_p(self.encode_utf8(sql_str))
-        mylog.info("executing %s " % self.encode_utf8(self.stmt.value))
+        mylog.debug("executing %s " % self.encode_utf8(self.stmt.value))
         cliRC = self.mDb2_Cli.libcli64.SQLExecDirect(self.hstmt, self.stmt, SQL_NTS)
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.mDb2_Cli.hdbc, cliRC,"register_sp SQLExecDirect")
 
@@ -372,8 +372,6 @@ SQL_API_RC SQL_API_FN all_data_types(
         mylog.info("Executing \n%s\n" % select_str)
         clirc = self.mDb2_Cli.libcli64.SQLExecute(self.hstmt)
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.mDb2_Cli.hdbc, clirc, "SQLExecute")
-
-        self.mDb2_Cli.describe_parameters(self.hstmt)
 
         if clirc != SQL_SUCCESS:
             mylog.error("Error executing %d" % clirc)

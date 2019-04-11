@@ -12,8 +12,8 @@ if sys.version_info > (3,):
 class LogUtilization(CommonTestCase):
     """test SYSIBMADM.LOG_UTILIZATION"""
 
-    def __init__(self,testName, extraArg=None):
-        super(LogUtilization, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(LogUtilization, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         self.test_list_current_appl_logs()
@@ -33,9 +33,9 @@ FROM
             dictionary = ibm_db.fetch_both(stmt2)
             while dictionary:
                 one_dictionary = dictionary
-                one_dictionary['TOTAL_LOG_AVAILABLE_KB'] = long(float(one_dictionary['TOTAL_LOG_AVAILABLE_KB']) * 1024)
-                one_dictionary['TOTAL_LOG_USED_TOP_KB']  = long(float(one_dictionary['TOTAL_LOG_USED_TOP_KB']) * 1024)
-                one_dictionary['TOTAL_LOG_USED_KB']      = long(float(one_dictionary['TOTAL_LOG_USED_KB']) * 1024)
+                one_dictionary['TOTAL_LOG_AVAILABLE_KB'] = long(float(one_dictionary['TOTAL_LOG_AVAILABLE_KB']) )
+                one_dictionary['TOTAL_LOG_USED_TOP_KB']  = long(float(one_dictionary['TOTAL_LOG_USED_TOP_KB']) )
+                one_dictionary['TOTAL_LOG_USED_KB']      = long(float(one_dictionary['TOTAL_LOG_USED_KB']))
                 self.print_keys(one_dictionary, human_format=True)
                 dictionary = ibm_db.fetch_both(stmt2)
 

@@ -84,6 +84,7 @@ class Db2CliTest_UnitTest(unittest.TestCase):
         mylog.info("test id='%s'" % self.id())
 
         self.test_spserver()
+        self.test_tbload()
         #return
         self.test_EnvAttrSetGet()
         self.test_list_functions()
@@ -107,21 +108,29 @@ class Db2CliTest_UnitTest(unittest.TestCase):
     def test_spserver(self):
         mySP_SERVER = SP_SERVER(self.mDb2_Cli)
         mySP_SERVER.do_spserver_test()
+        mySP_SERVER.do_spserver_python_path_test()
 
         if platform.system() == "Windows":
             mySP_SERVER.do_spserver_only_windows_test()
-        else:
-            mySP_SERVER.do_spserver_python_path_test()
+
 
         if hasattr(self, 'TextTestResult'):
             self.TextTestResult.addSuccess(sys._getframe(  ).f_code.co_name)
         return 0
 
+    def test_tbload(self):
+        myTbLoad = TbLoad(self.mDb2_Cli)
+        myTbLoad.do_tbload_test()
+
+
+        if hasattr(self, 'TextTestResult'):
+            self.TextTestResult.addSuccess(sys._getframe(  ).f_code.co_name)
+        return 0
 
     def test_dummy_exception(self):
         import spclient_python
         try:
-            spclient_python.python_create_dummy_exception("hello spclient_python.Error")
+            spclient_python.create_dummy_exception("hello spclient_python.Error")
         except spclient_python.Error as e:
             mylog.info("""
 this is a provoked exception spclient_python.Error 

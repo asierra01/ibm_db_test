@@ -3,6 +3,7 @@ from utils import mylog
 
 try:
     import xml.etree.ElementTree as ET
+    from xml.etree.ElementTree import ParseError
 except TypeError as e:
     ET = None
     mylog.exception("importing xml.etree.ElementTree is throwing a TypeError excp %s" % e)
@@ -24,8 +25,12 @@ class LogXmlData():
         if ET is None:
             mylog.warn("ET is None, xml.etree.ElementTree was not imported")
             return
-        tree = ET.parse(filename)
-        root = tree.getroot()
+        try:
+            tree = ET.parse(filename)
+            root = tree.getroot()
+        except ParseError as e:
+            mylog.error("ParseError %s" % e)
+            return
         #print root.tag
         first_dict = root[0][0][0]
         self.print_dic(first_dict, "")

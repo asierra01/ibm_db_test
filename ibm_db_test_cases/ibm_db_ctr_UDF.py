@@ -2,7 +2,7 @@
 import sys
 import ibm_db
 from texttable import Texttable
-from ibm_db_test_cases import CommonTestCase
+from . import CommonTestCase
 from utils import mylog
 from multiprocessing import Value
 from ctypes import c_bool
@@ -17,8 +17,8 @@ if sys.version_info > (3,):
 
 class CTR_UDF(CommonTestCase):
 
-    def __init__(self, testName, extraArg=None):
-        super(CTR_UDF, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(CTR_UDF, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(CTR_UDF, self).runTest()
@@ -97,7 +97,7 @@ executing the counter function
             self.result.addSkip(self, "Routine CTR is not present or registered")
             return 0
 
-        if not self.if_table_present_common(self.conn, "EMPLOYEE", self.getDB2_USER()):
+        if not self.if_table_present(self.conn, "EMPLOYEE", self.getDB2_USER()):
             mylog.warn("Table %s.EMPLOYEE is not presnt" % self.getDB2_USER())
             self.result.addSkip(self, "Table EMPLOYEE is not present")
             return 0

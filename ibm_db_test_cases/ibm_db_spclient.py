@@ -1,15 +1,21 @@
 
-import sys
-import os
+import sys, os
 import ibm_db
-import platform
-from ibm_db_test_cases import CommonTestCase
+from . import *
 from utils import mylog
-from datetime import datetime
-import spclient_python
+try:
+    import spclient_python
+except :
+    mylog.error("cant import spclient_python")
 from multiprocessing import Value
 from ctypes import c_bool
 
+
+
+try:
+    from os import scandir, walk
+except ImportError:
+    from scandir import scandir, walk
 execute_once = Value(c_bool,False)
 
 __all__ = ['SPClient']
@@ -17,8 +23,8 @@ __all__ = ['SPClient']
 
 class SPClient(CommonTestCase):
 
-    def __init__(self, testName, extraArg=None):
-        super(SPClient, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(SPClient, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(SPClient, self).runTest()
@@ -28,48 +34,20 @@ class SPClient(CommonTestCase):
                 mylog.debug("we already ran")
                 return
             execute_once.value = True
+
         self.test_spclient_python()
         self.test_spclient_python_dummy_exception()
-        self.test_tbload()
-        self.test_spclient_python_get_dbsize()
+        self.test_sample_tbload_c()
 
     def test_spclient_python_dummy_exception(self):
         try:
-            spclient_python.python_create_dummy_exception("hello spclient_python.Error")
+            spclient_python.create_dummy_exception("hello spclient_python.Error")
         except spclient_python.Error as e:
             mylog.error("expected provoked exception\nspclient_python.Error '%s'" % e)
             return 0
         return 0
 
-    def test_spclient_python_get_dbsize(self):
-        """Using spclient_python call sp CALL GET_DBSIZE_INFO (?, ?, ?, ?)
-        spclient_python.python_call_get_db_size(self.conn, mylog.info, self.SNAPSHOTTIMESTAMP)
-        this function update SNAPSHOTTIMESTAMP and return a list with two parameters
-        """
-        import humanfriendly
-        from cli_test_cases import DB2_TIMESTAMP
-
-        try:
-            self.SNAPSHOTTIMESTAMP  = DB2_TIMESTAMP()
-            self.SNAPSHOTTIMESTAMP.year = 2011
-            self.SNAPSHOTTIMESTAMP.month = 6
-            mylog.info("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
-            #mylog.info("SNAPSHOTTIMESTAMP      '%s'" % type(self.SNAPSHOTTIMESTAMP))
-            #mylog.info("SNAPSHOTTIMESTAMP.year '%d' %s" % (self.SNAPSHOTTIMESTAMP.year, type(self.SNAPSHOTTIMESTAMP.year)))
-            my_list_sizes = spclient_python.python_call_get_db_size(self.conn, mylog.info, self.SNAPSHOTTIMESTAMP)
-            if my_list_sizes is not None:
-                mylog.info("SNAPSHOTTIMESTAMP      '%s'" % self.SNAPSHOTTIMESTAMP)
-                mylog.info("DatabaseSize '{:,}' DatabaseCapacity '{:,}'".format(my_list_sizes[0], my_list_sizes[1]))
-                mylog.info("DatabaseSize '%s' DatabaseCapacity '%s'" % (
-                    humanfriendly.format_size(my_list_sizes[0], binary=True),
-                    humanfriendly.format_size(my_list_sizes[1], binary=True)))
-
-        except Exception as _i:
-            self.result.addFailure(self, sys.exc_info()) 
-            return -1
-        return 0
-
-    def test_tbload(self):
+    def test_sample_tbload_c(self):
         """Using spclient_python to do test the db2 load c api 
         SQL_ATTR_USE_LOAD_API
         SQL_USE_LOAD_INSERT
@@ -83,26 +61,24 @@ class SPClient(CommonTestCase):
         """
 
         try:
-            mylog.info("conn is ibm_db.IBM_DBConnection ? %s " % isinstance(self.conn, ibm_db.IBM_DBConnection))
-            ret = spclient_python.python_tbload_ibm_db(
+            mylog.debug("conn is ibm_db.IBM_DBConnection ? %s " % isinstance(self.conn, ibm_db.IBM_DBConnection))
+            spclient_python.sample_tbload_c(
                 self.conn,
                 #None,
                 mylog.info)
-            mylog.info("spclient_python.python_tbload_ibm_db returned '%s'" % ret)
 
-        except Exception as i:
+        except Exception as _i:
             self.result.addFailure(self, sys.exc_info())
             return -1
         return 0
 
-
     def test_spclient_python(self):
         try:
-            if not self.if_table_present_common(self.conn, "EMPLOYEE", self.getDB2_USER()):
-                mylog.warn("Table %s.EMPLOYEE is not present we cant run spclient_python.python_run_the_test_ibm_db that depends on table EMPLOYEE" % self.getDB2_USER())
-                self.result.addSkip(self, "Table EMPLOYEE is not present we cant run spclient_python.python_run_the_test_ibm_db")
+            if not self.if_table_present(self.conn, "EMPLOYEE", self.getDB2_USER()):
+                mylog.warn("\nTable %s.EMPLOYEE is not present we cant run spclient_python.run_the_test that depends on table EMPLOYEE" % self.getDB2_USER())
+                self.result.addSkip(self, "\nTable EMPLOYEE is not present we cant run spclient_python.run_the_test")
                 return 0
-            spclient_python.python_run_the_test_ibm_db(self.conn, mylog.info)
+            spclient_python.run_the_test(self.conn, mylog.info)
         except Exception as _i:
             self.result.addFailure(self, sys.exc_info()) 
             return -1

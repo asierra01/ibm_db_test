@@ -4,7 +4,7 @@
 import sys
 
 import ibm_db
-from  ibm_db_test_cases import CommonTestCase
+from . import CommonTestCase
 from utils.logconfig import mylog
 from multiprocessing import Value
 from ctypes import c_bool
@@ -19,8 +19,8 @@ __all__ = ['Admin_Get_Mem_Used']
 class Admin_Get_Mem_Used(CommonTestCase):
     """Get ADMIN_GET_MEM_USAGE calling SYSPROC.ADMIN_GET_MEM_USAGE"""
 
-    def __init__(self, testName, extraArg=None):
-        super(Admin_Get_Mem_Used, self).__init__(testName,extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Admin_Get_Mem_Used, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Admin_Get_Mem_Used, self).runTest()
@@ -78,7 +78,8 @@ FROM
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
 
-            self.print_keys(dictionary, True)
+            if dictionary:
+                self.print_keys(dictionary, True)
 
             ibm_db.free_result(stmt2)
 

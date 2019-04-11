@@ -1,7 +1,7 @@
 
 from __future__ import absolute_import
 import ibm_db
-from  ibm_db_test_cases import CommonTestCase
+from  . import CommonTestCase
 from utils.logconfig import mylog
 import sys
 from multiprocessing import Value
@@ -14,8 +14,8 @@ __all__ = ['Prune']
 
 class Prune(CommonTestCase):
 
-    def __init__(self, testName, extraArg=None): 
-        super(Prune, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None): 
+        super(Prune, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Prune, self).runTest()
@@ -28,6 +28,7 @@ class Prune(CommonTestCase):
             execute_once.value = True
 
         self.test_set_auto_del_rec_obj_on()
+        self.test_prune_history()
         self.test_prune_history_and_log()
 
     def test_set_auto_del_rec_obj_on(self):
@@ -58,6 +59,39 @@ CALL SYSPROC.ADMIN_CMD ('UPDATE DB CFG USING auto_del_rec_obj ON')
 
         return 0
 
+    def test_prune_history(self):
+        """
+The archive log history can be checked with following command.
+
+Output:
+
+$ db2 list history archive log all for sample
+"""
+        try:
+            exec_str = """
+CALL SYSPROC.ADMIN_CMD ('prune history 201912 WITH FORCE OPTION AND DELETE')
+"""
+            mylog.info("\nexecuting \n%s\n" % exec_str)
+            stmt1 = ibm_db.exec_immediate(self.conn, exec_str)
+            ibm_db.commit(self.conn)
+            ibm_db.free_result(stmt1)
+
+        except Exception as i:
+            if self.conn:
+                ibm_db.rollback(self.conn)
+            stmt_error    = ibm_db.stmt_error() 
+            stmt_errormsg = ibm_db.stmt_errormsg() 
+            mylog.error ("""
+Exception     '%s'
+type           %s 
+stmt_error    '%s' 
+stmt_errormsg '%s'""" % (i, 
+                         type(i),
+                         stmt_error,
+                         stmt_errormsg))
+            self.result.addFailure(self, sys.exc_info())
+
+        return 0
 
     def test_prune_history_and_log(self):
         """http://www-01.ibm.com/support/docview.wss?uid=swg21673776
@@ -99,8 +133,8 @@ stmt_errormsg '%s'""" % (i, type(i),stmt_error,stmt_errormsg))
 
 
         if self.mDb2_Cli.LOGARCHMETH1 == "OFF":
-            mylog.warn("We cant prune history...LOGARCHMETH1 = '%s'" % self.mDb2_Cli.LOGARCHMETH1)
-            self.result.addSkip(self, "We cant prune history...LOGARCHMETH1 = '%s'" % self.mDb2_Cli.LOGARCHMETH1)
+            mylog.warn("We cant prune log files...LOGARCHMETH1 = '%s'" % self.mDb2_Cli.LOGARCHMETH1)
+            self.result.addSkip(self, "We cant prune log files...LOGARCHMETH1 = '%s'" % self.mDb2_Cli.LOGARCHMETH1)
             return 0
         try:
             exec_str = """
@@ -128,11 +162,11 @@ stmt_errormsg '%s'""" % (i,
 
         try:
             if self.conn:
-                exec_str = "CALL SYSPROC.ADMIN_CMD ('PRUNE LOGFILE PRIOR TO   S0001000.LOG ')"
+                exec_str = """
+CALL SYSPROC.ADMIN_CMD ('PRUNE LOGFILE PRIOR TO   S0001000.LOG ')
+"""
                 mylog.info("\nexecuting \n%s\n" %exec_str)
                 stmt1 = ibm_db.exec_immediate(self.conn,exec_str)
-                #rows1 = ibm_db.num_rows(stmt1)
-                #mylog.info("stmt1 '%s' rows ? %d " %(stmt1,rows1))
                 ibm_db.free_result(stmt1)
 
         except Exception as i:
@@ -140,7 +174,11 @@ stmt_errormsg '%s'""" % (i,
                 ibm_db.rollback(self.conn)
             stmt_error    = ibm_db.stmt_error() 
             stmt_errormsg = ibm_db.stmt_errormsg() 
-            mylog.error ("\nException '%s'\nstmt_error = '%s', \nstmt_errormsg '%s'\n" %
+            mylog.error ("""
+Exception     '%s'
+stmt_error    '%s',
+stmt_errormsg '%s'
+""" %
                          (i,
                           stmt_error,
                           stmt_errormsg))

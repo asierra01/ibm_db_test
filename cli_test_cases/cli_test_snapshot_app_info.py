@@ -63,9 +63,9 @@ SELECT
     *
 FROM
     TABLE( 
-          SYSPROC.SNAP_GET_APPL_INFO('SAMPLE',-1)
+          SYSPROC.SNAP_GET_APPL_INFO('%s',-1)
           )
-AS SNAP"""
+AS SNAP""" % self.getDB2_DATABASE()
 
         self.stmt = c_char_p(self.encode_utf8(select_str))
         mylog.info("executing stmt \n'%s'\n" % self.encode_utf8(self.stmt.value))

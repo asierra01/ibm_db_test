@@ -4,7 +4,7 @@
 import sys
 
 import ibm_db
-from  ibm_db_test_cases import CommonTestCase
+from  . import CommonTestCase
 from utils.logconfig import mylog
 from texttable import Texttable
 import platform
@@ -22,8 +22,8 @@ class Admin_Get_Tab_Info(CommonTestCase):
     """Get ADMIN_GET_TAB_INFO calling SYSPROC.ADMIN_GET_TAB_INFO
     Admin get table info, sizes, compress rate ?
     """
-    def __init__(self, testName, extraArg=None):
-        super(Admin_Get_Tab_Info, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Admin_Get_Tab_Info, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         mylog.debug("runTest")
@@ -47,6 +47,10 @@ class Admin_Get_Tab_Info(CommonTestCase):
             if execute_once_setup.value:
                 return
             execute_once_setup.value = True
+
+        if self.mDb2_Cli is None:
+            return
+
         sql_str = """
 
 CREATE BUFFERPOOL BP_4K IMMEDIATE
@@ -76,6 +80,47 @@ LIKE "SESSION"."TEMP_EMP"
         mylog.info("executing \n%s\n" % sql_str)
         self.run_statement(sql_str)
 
+    def gettable1(self):
+        col = "NAME APPLICATION_HANDLE APPLICATION_NAME COLNAME TYPENAME COLNO LOGGED"
+        self.list_cols = col.split()
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.header(self.list_cols)
+        table.set_header_align(['l' for _i in self.list_cols])
+        table.set_cols_align(['l', 'l', 'l', 'l', 'l', 'l', 'l'])
+        table.set_cols_width([43, 20, 20, 15, 10, 10, 10])
+        return table
+
+    def gettable(self):
+        col = "NAME APPLICATION_HANDLE INSTANTIATOR COLCOUNT ONCOMMIT ONROLLBACK LOGGED"
+        self.list_cols = col.split()
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.header(self.list_cols)
+        table.set_header_align(['l' for _i in self.list_cols])
+        table.set_cols_align(['l', 'l', 'l', 'l', 'l', 'l', 'l'])
+        table.set_cols_width([43, 19, 20, 10, 10, 10, 10])
+        return table
+
+    def gettable2(self):
+        align = ['l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']
+        self.sizes = [43, 18, 11, 11, 15, 7, 14, 20, 18, 18]
+        col = "NAME DATA_PARTITION_ID STATSTYPE AVAILABLE NO_LOAD_RESTART TABTYPE REORG_PENDING"
+        col += " TOTAL_PHYSICAL_SIZE TOTAL_LOGICAL_SIZE RECLAIMABLE_SPACE "
+        # Mac DB2 10.1 doesnt have column oriented tables
+        if self.server_info.DBMS_VER >= "10.5": 
+            col += " COL_OBJECT_L_SIZE"
+            align.append("r")
+            self.sizes.append(18)
+
+        self.list_cols = col.split()
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.header(self.list_cols)
+        table.set_header_align(align)
+        table.set_cols_align(align)
+        return table
+
     def tearDown(self):
         super(Admin_Get_Tab_Info, self).tearDown()
         mylog.debug("tearDown")
@@ -83,6 +128,10 @@ LIKE "SESSION"."TEMP_EMP"
             if execute_once_teardown.value:
                 return
             execute_once_teardown.value = True
+
+        if self.mDb2_Cli is None:
+            return
+
         sql_str_drop = """
 DROP TABLE  "SESSION"."TEMP_EMP"
 @
@@ -102,29 +151,30 @@ DROP BUFFERPOOL BP_4K
             select_str = """
 SELECT  *
 FROM 
-    TABLE (SYSPROC.ADMIN_GET_TEMP_TABLES(NULL, '', '')) AS T """
+    TABLE (SYSPROC.ADMIN_GET_TEMP_TABLES(NULL, '', '')) 
+AS
+    T
+"""
             stmt2 = None
             mylog.info("executing \n%s\n" % select_str)
             stmt2 = ibm_db.exec_immediate(self.conn, select_str)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
 
-            col = "NAME APPLICATION_HANDLE INSTANTIATOR COLCOUNT ONCOMMIT ONROLLBACK LOGGED"
-            list_cols = col.split()
-            table = Texttable()
-            table.set_deco(Texttable.HEADER)
-            table.header(list_cols)
-            table.set_header_align(['l' for _i in list_cols])
-            table.set_cols_align(['l','l','l','l','l','l','l'])
-            table.set_cols_width([43,30,20,10,10,10,10])
+            table = self.gettable()
+
             one_dic = None
-            while dictionary :
+            max_len = 20
+            while dictionary:
                 one_dic = dictionary
                 my_row = []
 
-                for key in list_cols:
+                for key in self.list_cols:
                     if key == "NAME":
-                        my_row.append(dictionary["TABSCHEMA"].strip()+"."+dictionary["TABNAME"])
+                        name = dictionary["TABSCHEMA"].strip()+"."+dictionary["TABNAME"]
+                        if len(name) > max_len:
+                            max_len = len(name)
+                        my_row.append(name)
                     else:
                         my_row.append(dictionary[key])
 
@@ -133,6 +183,9 @@ FROM
 
             if one_dic:
                 self.print_keys(one_dic, True)
+
+            table._width[0] = max_len
+
             mylog.info("\n\n%s\n\n" % table.draw())
             ibm_db.free_result(stmt2)
         except Exception as _i:
@@ -150,31 +203,26 @@ SELECT *
           NULL, '', '')) 
     AS T 
 """
-            stmt2 = None
             mylog.info("executing \n%s\n" % sql_str)
 
             stmt2 = ibm_db.exec_immediate(self.conn, sql_str)
             self.mDb2_Cli.describe_columns(stmt2)
             dictionary = ibm_db.fetch_both(stmt2)
 
-            col = "NAME APPLICATION_HANDLE APPLICATION_NAME COLNAME TYPENAME COLNO LOGGED"
-            list_cols = col.split()
-            table = Texttable()
-            table.set_deco(Texttable.HEADER)
-            table.header(list_cols)
-            table.set_header_align(['l' for _i in list_cols])
-            table.set_cols_align(['l','l','l','l','l','l','l'])
-            table.set_cols_width([43,20,20,15,10,10,10])
-            len_name_max = 0
-            len_colname_max = 0
-            while dictionary :
+            table = self.gettable1()
+            len_name_max = 20
+            len_colname_max = 20
+
+            while dictionary:
                 my_row = []
-                for key in list_cols:
+                for key in self.list_cols:
+
                     if key == "NAME":
                         name = dictionary["TABSCHEMA"].strip()+"."+dictionary["TABNAME"]
                         if len(name) > len_name_max:
                             len_name_max = len(name)
                         my_row.append(name)
+
                     elif key == "COLNAME":
                         colname = dictionary[key]
                         if len(colname) > len_colname_max:
@@ -185,7 +233,7 @@ SELECT *
                 table.add_row(my_row)
                 dictionary = ibm_db.fetch_both(stmt2)
 
-            #self.print_keys(one_dic, True)
+            # self.print_keys(one_dic, True)
             table._width[0] = len_name_max+1
             table._width[3] = len_colname_max+1
 
@@ -193,7 +241,7 @@ SELECT *
             ibm_db.free_result(stmt2)
 
         except Exception as _i:
-            self.result.addFailure(self,sys.exc_info())
+            self.result.addFailure(self, sys.exc_info())
             return -1
 
         return 0
@@ -230,42 +278,28 @@ SELECT *
         try:
 
             select_str = """
-SELECT * 
+SELECT 
+    *
 FROM 
     TABLE( SYSPROC.ADMIN_GET_TAB_INFO('%s', NULL))  AS T
 """ % schema
-            stmt2 = None
             mylog.info("executing \n%s\n" % select_str)
             stmt2 = ibm_db.exec_immediate(self.conn, select_str)
             if display_details:
                 self.mDb2_Cli.describe_columns(stmt2)
 
-            align = ['l','l','l','l','l','l','l','r','r','r']
-            sizes = [43,18,11,11,15,7,14,20,18,18]
+
             dictionary = ibm_db.fetch_both(stmt2)
-            col = "NAME DATA_PARTITION_ID STATSTYPE AVAILABLE NO_LOAD_RESTART TABTYPE REORG_PENDING TOTAL_PHYSICAL_SIZE TOTAL_LOGICAL_SIZE RECLAIMABLE_SPACE"
+            table = self.gettable2()
 
-            #Mac DB2 10.1 doesnt have column oriented tables
-            if self.server_info.DBMS_VER >= "10.5": 
-                col += " COL_OBJECT_L_SIZE"
-                align.append ("r")
-                sizes.append(18)
-
-            list_cols = col.split()
-            table = Texttable()
-            table.set_deco(Texttable.HEADER)
-            table.header(list_cols)
-            table.set_header_align(align)
-            table.set_cols_align(align)
-
-            my_row = []
             max_name_len = 20
             one_dic = None
 
-            while dictionary :
+            while dictionary:
                 one_dic = dictionary
                 my_row = []
-                for key in list_cols:
+                for key in self.list_cols:
+
                     if key == "NAME":
                         just_name = dictionary["TABSCHEMA"].strip() + "." + dictionary["TABNAME"]
                         my_row.append(just_name)
@@ -293,20 +327,19 @@ FROM
                         my_row.append(dictionary[key] if dictionary[key] else "")
                 table.add_row(my_row)
                 dictionary = ibm_db.fetch_both(stmt2)
-            sizes[0] = max_name_len
+            self.sizes[0] = max_name_len
 
             if display_details:
                 if one_dic is not None:
                     self.print_keys(one_dic, True)
 
             #mylog.info("sizes '%s'" % sizes)
-            table.set_cols_width(sizes)
+            table.set_cols_width(self.sizes)
             mylog.info("\nschema='%s'\n%s\n\n" % (schema, table.draw()))
             ibm_db.free_result(stmt2)
 
-
         except Exception as _i:
-            self.result.addFailure(self,sys.exc_info())
+            self.result.addFailure(self, sys.exc_info())
             return -1
 
         return 0

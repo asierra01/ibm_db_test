@@ -5,7 +5,7 @@ import sys
 
 import ibm_db
 import ibm_db_dbi
-from  ibm_db_test_cases import CommonTestCase
+from  . import CommonTestCase
 from utils.logconfig import mylog
 from prettytable import from_db_cursor
 from multiprocessing import Value
@@ -18,8 +18,8 @@ __all__ = ['Events']
 class Events(CommonTestCase):
     """SYSCAT_EVENTTABLES"""
 
-    def __init__(self, testName, extraArg=None):
-        super(Events, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Events, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Events, self).runTest()

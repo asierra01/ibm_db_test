@@ -17,8 +17,8 @@ __all__ = ['Iterator']
 class Iterator(CommonTestCase):
     """Iterator"""
 
-    def __init__(self, testname, extraarg=None):
-        super(Iterator, self).__init__(testname, extraarg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Iterator, self).__init__(test_name, extra_arg)
 
     def runTest(self):
         super(Iterator, self).runTest()
@@ -94,7 +94,7 @@ END
 
 
 """.format(schema=self.getDB2_USER())
-        if not self.if_table_present_common(self.conn, "DEPARTMENT", self.getDB2_USER()):
+        if not self.if_table_present(self.conn, "DEPARTMENT", self.getDB2_USER()):
             mylog.warning("""
 Table "%s".DEPARTMENT is not present we cant run register sp ITERATOR that depends on table DEPARTMENT
 """ % self.getDB2_USER())

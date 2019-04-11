@@ -12,17 +12,17 @@ from ctypes import c_bool
 
 execute_once = Value(c_bool,False)
 
-__all__ = ['Experimental_Test']
+__all__ = ['Experimental']
 
 
-class Experimental_Test(CommonTestCase):
+class Experimental(CommonTestCase):
     """test experimental"""
 
-    def __init__(self, testName, extraArg=None):
-        super(Experimental_Test, self).__init__(testName, extraArg)
+    def __init__(self, test_name, extra_arg=None):
+        super(Experimental, self).__init__(test_name, extra_arg)
 
     def runTest(self):
-        super(Experimental_Test, self).runTest()
+        super(Experimental, self).runTest()
         with execute_once.get_lock():
             if execute_once.value:
                 mylog.debug("we already ran")
@@ -55,9 +55,10 @@ class Experimental_Test(CommonTestCase):
         sql_str = """
 DROP SCHEMA
    %s 
-RESTRICT@""" % schema_name
-
-        ret =self.run_statement(sql_str)
+RESTRICT
+@""" % schema_name
+        mylog.info("executing \n%s\n" % sql_str)
+        ret = self.run_statement(sql_str)
         return ret
 
     def db2_drop_schema_test(self):
@@ -71,6 +72,7 @@ RESTRICT@""" % schema_name
             self.db2_drop_schema_local("TEST_SCHEMA")
         else:
             sql_str_create_schema = "CREATE SCHEMA TEST_SCHEMA@"
+            mylog.info("executing \n%s\n" % sql_str_create_schema)
             ret = self.run_statement(sql_str_create_schema)
         return ret
 
@@ -155,11 +157,11 @@ RESTRICT@""" % schema_name
         #    mylog.error("Exception %s" % e)
         self.db2_drop_schema_test()
 
-        if self.if_table_present_common(self.conn, "COPY_SCHEMA_ERROR_TABLE", self.getDB2_USER()):
+        if self.if_table_present(self.conn, "COPY_SCHEMA_ERROR_TABLE", self.getDB2_USER()):
             sql_str= "DROP TABLE COPY_SCHEMA_ERROR_TABLE@"
             _ret = self.run_statement(sql_str)
 
-        if self.if_table_present_common(self.conn, "DROP_SCHEMA_ERROR_TABLE", self.getDB2_USER()):
+        if self.if_table_present(self.conn, "DROP_SCHEMA_ERROR_TABLE", self.getDB2_USER()):
 
             sql_str= "DROP TABLE  DROP_SCHEMA_ERROR_TABLE@"
             _ret = self.run_statement(sql_str)

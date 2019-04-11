@@ -1,16 +1,19 @@
 
 from __future__ import absolute_import
+from utils.logconfig import mylog
 
 try:
     from cli_object import Db2_Cli
+    from cli_object import PyCArgObject
 except Exception as e:
     Db2_Cli = None
-    print ("Error %s '%s'" % (type(e), e))
+    mylog.exception ("Error cli_test_cases %s '%s'" % (type(e), e))
 
 
 from .cli_test_common_class import Common_Class
 from .DB2_TIMESTAMP import DB2_TIMESTAMP
 from .cli_test_sp_proc import SP_SERVER
+from .cli_test_tbload import TbLoad
 from .cli_test_bulk_insert import BulkInsert
 from .cli_test_bulk_insert_data import TABLE_BULK_INSERT_DATA
 from .cli_test_db2ApiDef import *
@@ -33,6 +36,7 @@ from .cli_test_db2Backup import DB2Backup
 #from .ibm_cli_test import Db2CliTest
 from .test_case_backup import Db2CliTest_BackUpTest
 from .test_case_all import Db2CliTest_UnitTest
+from .ibm_cli_test import run_cli_unittest
 
 from . import db2_cli_constants
 from . import db2_clu_constants
@@ -40,7 +44,8 @@ from .db2_cli_constants import *
 from .db2_cli_constants import db2_cli_func
 
 
-__all__ = ['Common_Class',
+__all__ = ['run_cli_unittest',
+           'Common_Class',
            'DBnames',
            'BulkInsert',
            'Extract_Customer',
@@ -71,7 +76,9 @@ __all__ = ['Common_Class',
            'db2_cli_func',
            'sqlca',
            'SP_SERVER',
+           'TbLoad',
            'Db2_Cli',
+           'PyCArgObject',
            'Db2CliTest_BackUpTest',
            #'Db2CliTest_UnitTest',
            ]

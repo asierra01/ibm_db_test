@@ -17,35 +17,11 @@ from .db2_cli_constants import (
     SQL_C_CHAR)
 from utils.logconfig import mylog
 import spclient_python
+from cli_object import PyCArgObject
 import platform
 
-#import logging
 __all__ = ['SP_SERVER']
 
-class PyCArgObject(ctypes.Structure):
-
-    class value(ctypes.Union):
-        _fields_ = [("c", ctypes.c_char),
-                    ("h", ctypes.c_short),
-                    ("i", ctypes.c_int),
-                    ("l", ctypes.c_long),
-                    ("q", ctypes.c_longlong),
-                    ("d", ctypes.c_double),
-                    ("f", ctypes.c_float),
-                    ("p", ctypes.c_void_p)]
-
-    #
-    # Thanks to Lenard Lindstrom for this tip:
-    # sizeof(PyObject_HEAD) is the same as object.__basicsize__.
-    #
-    _fields_ = [("PyObject_HEAD", ctypes.c_byte * object.__basicsize__),
-                ("pffi_type", ctypes.c_void_p),
-                ("tag", ctypes.c_char),
-                ("value", value),
-                ("obj", ctypes.c_void_p),
-                ("size", ctypes.c_int)]
-
-    _anonymous_ = ["value"]
 
 
 class SP_SERVER(Common_Class):
@@ -324,17 +300,20 @@ out_python_path:
         self.mDb2_Cli.STMT_HANDLE_CHECK(self.hstmt, self.hdbc, clirc,"SQL_HANDLE_STMT SQLFreeHandle")
 
     def do_spserver_only_windows_test(self):
+        """run a sequence of tests calling backend store procedures residing on spserver.dll(so)
+        passing byref(self.mDb2_Cli.henv) , byref(self.mDb2_Cli.hdbc) as arguments for the henv, hdbc SQLHANDLE(s)
+        """
 
         if self.check_spserver() == -1:
             return -1
         self.register_spserver()
         #return 0
  
-        mylog.info("byref(self.mDb2_Cli.henv) '%s' type '%s'" % (
+        mylog.debug("byref(self.mDb2_Cli.henv) '%s' type '%s'" % (
             byref(self.mDb2_Cli.henv),
             type(byref(self.mDb2_Cli.henv))))
 
-        mylog.info("byref(self.mDb2_Cli.hdbc) '%s' type '%s'" % (
+        mylog.debug("byref(self.mDb2_Cli.hdbc) '%s' type '%s'" % (
             byref(self.mDb2_Cli.hdbc),
             type(byref(self.mDb2_Cli.hdbc))))
 
@@ -355,18 +334,19 @@ out_python_path:
             mylog.warning("spserver not Found !!! so all spserver related code will fail")
         else:
             mylog.info("spserver present !!! ")
+
         ref_hdbc    = byref(self.mDb2_Cli.hdbc)
         argobj_hdbc = PyCArgObject.from_address(id(ref_hdbc)) 
-        mylog.info ("hex(argobj_hdbc.p) %s " % hex(argobj_hdbc.p))
-        mylog.info("argobj_henv %s" % argobj_henv)
-        mylog.info("argobj_hdbc %s" % argobj_hdbc)
+        mylog.debug ("hex(argobj_hdbc.p) %s " % hex(argobj_hdbc.p))
+        mylog.debug("argobj_henv %s" % argobj_henv)
+        mylog.debug("argobj_hdbc %s" % argobj_hdbc)
         try:
             #argobj_henv is PyCArgObject
             #argobj_hdbc is PyCArgObject
             #this works ONLY under Windows
             if platform.system() == "Windows": # works
-                mylog.info("spclient_python.python_run_the_test_only_windows")
-                spclient_python.python_run_the_test_only_windows(
+                mylog.info("spclient_python.run_the_test_only_windows")
+                spclient_python.run_the_test_only_windows(
                     byref(self.mDb2_Cli.henv),
                     byref(self.mDb2_Cli.hdbc),
                     mylog.info
@@ -378,9 +358,13 @@ out_python_path:
         return 0
 
     def do_spserver_test(self):
+        """run a sequence of tests calling backend store procedures residing on spserver.dll(so)
+        passing argobj_henv.p, argobj_hdbc.p as arguments for the henv, hdbc SQLHANDLE(s)
+        """
 
         if self.check_spserver() == -1:
             return -1
+
         self.register_spserver()
  
         mylog.info("byref(self.mDb2_Cli.henv) '%s' type '%s'" % (
@@ -396,16 +380,19 @@ out_python_path:
             mylog.warning("spserver not Found !!! so all spserver related code will fail")
         else:
             mylog.info("spserver present !!! ")
+
         ref_henv    = byref(self.mDb2_Cli.henv)
-        argobj_henv = PyCArgObject.from_address(id(ref_henv)) 
+        argobj_henv = PyCArgObject.from_address(id(ref_henv))
+
         ref_hdbc    = byref(self.mDb2_Cli.hdbc)
-        argobj_hdbc = PyCArgObject.from_address(id(ref_hdbc)) 
-        mylog.info ("hex(argobj_hdbc.p) %s " % hex(argobj_hdbc.p))
+        argobj_hdbc = PyCArgObject.from_address(id(ref_hdbc))
+
+        mylog.info("hex(argobj_hdbc.p) %s " % hex(argobj_hdbc.p))
         mylog.info("argobj_henv %s" % argobj_henv)
         mylog.info("argobj_hdbc %s" % argobj_hdbc)
         try:
-            mylog.info("spclient_python.python_run_the_test")
-            spclient_python.python_run_the_test(
+            mylog.info("spclient_python.run_the_test_cli")
+            spclient_python.run_the_test_cli(
                 argobj_henv.p,
                 argobj_hdbc.p,
                 mylog.info
