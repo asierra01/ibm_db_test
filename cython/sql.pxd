@@ -163,13 +163,13 @@ cdef extern from "sql.h":
 
 
     cdef  SQLRETURN SQLDescribeParam(  
-                                  SQLHSTMT        StatementHandle,  
-                                  SQLUSMALLINT    ParameterNumber,  
-                                  SQLSMALLINT *   DataTypePtr,  
-                                  SQLULEN *       ParameterSizePtr,  
-                                  SQLSMALLINT *   DecimalDigitsPtr,  
-                                  SQLSMALLINT *   NullablePtr);  
-                                  
+                                  SQLHSTMT        StatementHandle,
+                                  SQLUSMALLINT    ParameterNumber,
+                                  SQLSMALLINT *   DataTypePtr,
+                                  SQLULEN *       ParameterSizePtr,
+                                  SQLSMALLINT *   DecimalDigitsPtr,
+                                  SQLSMALLINT *   NullablePtr);
+
     cdef  SQLRETURN SQLNumParams(  
-                                 SQLHSTMT        StatementHandle,  
+                                 SQLHSTMT        StatementHandle,
                                  SQLSMALLINT *   ParameterCountPtr); 

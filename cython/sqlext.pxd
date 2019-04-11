@@ -48,7 +48,7 @@ cdef extern from "sqlext.h":
         SQL_ATTR_SIMULATE_CURSOR
         SQL_ATTR_USE_BOOKMARKS
         SQL_ATTR_AUTOCOMMIT
-        
+
         # SQL extended datatypes
         SQL_DATE
         SQL_INTERVAL

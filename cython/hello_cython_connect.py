@@ -4,8 +4,8 @@ from logconfig import mylog
 
 try:
     from connect_odbc import * #py_connect, py_run_select_customer, py_close, py_run_get_tables
-except ModuleNotFoundError as e:
-    print("ModuleNotFoundError, probably could not buld connect_odbc.pyd %s" % e)
+except Exception as e:
+    print("probably could not build connect_odbc.pyd '%s' %s" % (type(e), e))
     sys.exit(0)
 
 from bulk_insert import py_bulk_insert

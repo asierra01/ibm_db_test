@@ -31,7 +31,7 @@ if python_executable_path is not None:
     print ("GetShortPathName python_executable_path '%s'" % (python_executable_path))
     os.putenv("PYTHONHOME", "")
     time.sleep( 5 )
-    os.system("%s setup.py build " % python_executable_path)
-    os.system("%s hello_cython_connect.py" % python_executable_path)
+    os.system('"%s" setup.py build ' % python_executable_path)
+    os.system('"%s" hello_cython_connect.py' % python_executable_path)
 else:
     print ("python 37 not installed") 

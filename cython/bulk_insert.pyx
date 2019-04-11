@@ -1,7 +1,9 @@
-'''based on https://www.ibm.com/support/knowledgecenter/en/SSEPEK_11.0.0/odbc/src/tpc/db2z_bulkinserts.html
-'''
 #cython: c_string_type = bytes
 #cython: c_string_encoding = ascii 
+#cython: language_level=3, boundscheck=False
+
+'''based on https://www.ibm.com/support/knowledgecenter/en/SSEPEK_11.0.0/odbc/src/tpc/db2z_bulkinserts.html
+'''
 
 from sqlcli cimport *
 from sqlext cimport *
@@ -10,44 +12,35 @@ from sql cimport *
 from libc.string cimport memset, strlen, strcpy
 from datetime import datetime
 import ibm_db
-import traceback
-import textwrap
+#import traceback
+#import textwrap
+from texttable import Texttable
+import sys, os
 from cpython.version cimport PY_MAJOR_VERSION, PY_MINOR_VERSION, PY_MICRO_VERSION, PY_VERSION
 import cython
-
+from lineno import lineno
+from logconfig import mylog
+from set_users import set_users
+import platform
 
 cdef extern from "Python.h":
     int    __LINE__
     char * __FILE__
 
-from texttable import Texttable
-import sys, os
-
-
-from lineno import lineno
-from logconfig import mylog
-
 
 include "odbc_utils.pyx"
 
-#from bulk_insert_data import TABLE_BULK_INSERT_DATA
 __all__ = ['BulkInsert']
 
 cdef extern from "some_define.h":
     enum:
         DEF_ROWSET_SIZE
+my_dict = set_users()
 
-cdef str DB2_USER      = os.environ.get("DB2_USER")
+cdef str DB2_USER
 
 
-def process_to_char(s):
-    """helper function to handle py3 unicode strings"""
-    if isinstance(s, bytes):
-        #mylog.info("s is bytes type %s" % type((<bytes>s).decode('utf8')))
-        return (<bytes>s).decode('utf8')
-    else:
-        mylog.info("s is not bytes type %s" % type(s))
-        return s.encode('ascii')
+DB2_USER = process_to_char(my_dict["DB2_USER"])
 
 mylog.info("PY_MAJOR_VERSION= '%s:%s:%s'" % (PY_MAJOR_VERSION,PY_MINOR_VERSION, PY_MICRO_VERSION))
 mylog.info("PY_VERSION=       '%s' " % process_to_char(PY_VERSION))
@@ -78,19 +71,29 @@ NO FILE SYSTEM CACHING
 DROPPED TABLE RECOVERY OFF
 '''
 
+cdef str sqlstmt_drop = '''
+DROP TABLE 
+    "%s".TEST_BLK_INSERT_CUSTOMER
+''' % DB2_USER.upper()
+
 cdef str sqlstmt_create = '''
 CREATE TABLE 
-    TEST_BLK_INSERT_CUSTOMER( 
+    "%s".TEST_BLK_INSERT_CUSTOMER( 
         Cust_Num INTEGER,  
         First_Name VARCHAR(21), 
         Last_Name VARCHAR(21)) 
 IN TBNOTLOG
 COMPRESS YES
-'''
+''' % DB2_USER.upper()
+if platform.system() == "Windows":
+    sqlstmt_create += """
+ORGANIZE BY ROW
+"""
+        # ORGANIZE BY COLUMN cant not do BulkInsert !!!
 
 cdef str str_lock = """
 LOCK TABLE 
-    %s.TEST_BLK_INSERT_CUSTOMER 
+    "%s".TEST_BLK_INSERT_CUSTOMER 
     IN EXCLUSIVE MODE
 """  % DB2_USER.upper()
 
@@ -99,7 +102,7 @@ LOCK TABLE
 
 cdef str str_alter = '''
 ALTER TABLE 
-    %s.TEST_BLK_INSERT_CUSTOMER 
+    "%s".TEST_BLK_INSERT_CUSTOMER 
 ACTIVATE NOT LOGGED INITIALLY
 ''' % DB2_USER.upper()
 
@@ -109,16 +112,19 @@ SELECT
     First_Name, 
     Last_Name 
 FROM 
-    %s.TEST_BLK_INSERT_CUSTOMER
+    "%s".TEST_BLK_INSERT_CUSTOMER
 ''' % DB2_USER.upper()
 
 cdef str str_reorg_cmd = '''
-CALL SYSPROC.ADMIN_CMD ('REORG TABLE %s.TEST_BLK_INSERT_CUSTOMER')
+CALL SYSPROC.ADMIN_CMD ('REORG TABLE "%s".TEST_BLK_INSERT_CUSTOMER')
 ''' % DB2_USER.upper()
 
 
 cdef str str_count = '''
-select count(*) FROM %s.TEST_BLK_INSERT_CUSTOMER
+select 
+    count(*) 
+FROM 
+    "%s".TEST_BLK_INSERT_CUSTOMER
 ''' % DB2_USER.upper()
 
 def py_bulk_insert(insert_count):
@@ -162,14 +168,14 @@ cdef class BulkInsert(ODBC_UTILS):
 
         SQLUSMALLINT rowStatus[DEF_ROWSET_SIZE]
 
-        long      ROWSET_SIZE
+        long long  ROWSET_SIZE
         long      ITERACTIONS
         SQLCHAR * user
         SQLCHAR * dbAlias
         SQLCHAR * pswd
 
         int dbInfoBuf_Int
-        int total_inserted
+        long long total_inserted
         int insert_count
         start_time
 
@@ -182,12 +188,18 @@ cdef class BulkInsert(ODBC_UTILS):
 
     def __cinit__(self, insert_count):
         self.ROWSET_SIZE  = DEF_ROWSET_SIZE
-        self.DB2_DATABASE = os.environ.get("DB2_DATABASE")
-        self.DB2_PASSWORD = os.environ.get("DB2_PASSWORD")
-        self.DB2_USER     = os.environ.get("DB2_USER")
-        mylog.info("DB2_USER     %-30s type %s" % ("'%s'" % self.DB2_USER,     type(self.DB2_USER)))
-        mylog.info("DB2_PASSWORD %-30s type %s" % ("'%s'" % self.DB2_PASSWORD, type(self.DB2_PASSWORD)))
-        mylog.info("DB2_DATABASE %-30s type %s" % ("'%s'" % self.DB2_DATABASE, type(self.DB2_DATABASE)))
+        self.DB2_DATABASE = process_to_char(my_dict["DB2_DATABASE"])
+        self.DB2_PASSWORD = process_to_char(my_dict["DB2_PASSWORD"])
+        self.DB2_USER     = process_to_char(my_dict["DB2_USER"])
+
+
+        mylog.info("""
+DB2_USER     %-30s type %s
+DB2_PASSWORD %-30s type %s
+DB2_DATABASE %-30s type %s
+""" % ("'%s'" % self.DB2_USER,     type(self.DB2_USER),
+       "'%s'" % self.DB2_PASSWORD, type(self.DB2_PASSWORD),
+       "'%s'" % self.DB2_DATABASE, type(self.DB2_DATABASE)))
         self.ITERACTIONS  = 5
         self.insert_count = insert_count
 
@@ -239,7 +251,7 @@ cdef class BulkInsert(ODBC_UTILS):
 %s
 """ % sqlstmt_check_tblsp)
         rc = SQLExecDirect(another_localhtsmt,
-                           self.process_to_char(sqlstmt_check_tblsp),
+                           process_to_char(sqlstmt_check_tblsp),
                            SQL_NTS)
 
 
@@ -261,8 +273,8 @@ cdef class BulkInsert(ODBC_UTILS):
                        &indicator1)
             clirc_fetch = SQLFetch(another_localhtsmt)
 
-            mylog.info("Tablespaces %-20s" % ("'%s'" % self.process_to_char(tablespace_name)))
-            if tablespace_name == self.process_to_char(str_TBNOTLOG):
+            mylog.info("Tablespaces %-20s" % ("'%s'" % process_to_char(tablespace_name)))
+            if tablespace_name == process_to_char(str_TBNOTLOG):
                 found = True
                 mylog.info("TBNOTLOG Found!!!, so I wont create it")
                 break
@@ -278,10 +290,16 @@ cdef class BulkInsert(ODBC_UTILS):
                                    &create__tblsp_localhtsmt)
 
             rc = SQLExecDirect(create__tblsp_localhtsmt,
-                               self.process_to_char(sqlstmt_create_tblsp),
+                               process_to_char(sqlstmt_create_tblsp),
                                SQL_NTS)
             if rc == SQL_ERROR:
-                pass
+                self.STMT_HANDLE_CHECK(create__tblsp_localhtsmt, 
+                                       self.localhdbc, 
+                                       rc, 
+                                       lineno(), 
+                                       "sqlstmt_create_tblsp  SQLExecDirect", 
+                                       __FILE__)
+
             _clirc = SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
 
             clirc = SQLFreeHandle(SQL_HANDLE_STMT, create__tblsp_localhtsmt)
@@ -291,6 +309,17 @@ cdef class BulkInsert(ODBC_UTILS):
         clirc = SQLFreeHandle(SQL_HANDLE_STMT, another_localhtsmt)
         if clirc != SQL_SUCCESS:
             mylog.error("clirc != SQL_SUCCESS another_localhtsmt")
+
+    def my_table(self):
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.set_cols_dtype(['t',
+                              't'])
+        table.set_cols_align(['l', 'r'])
+        table.set_header_align(['l', 'r'])
+        table.header(["table name", "size"])
+        table.set_cols_width([50, 15])
+        return table
 
 
     cdef check_if_table_created(self):
@@ -313,7 +342,7 @@ cdef class BulkInsert(ODBC_UTILS):
 %s
 """ % sqlstmt_check_table)
         clirc = SQLExecDirect(another_table_localhtsmt,
-                             self.process_to_char(sqlstmt_check_table),
+                             process_to_char(sqlstmt_check_table),
                              SQL_NTS)
 
         if clirc != SQL_SUCCESS:
@@ -321,17 +350,18 @@ cdef class BulkInsert(ODBC_UTILS):
             self.STMT_HANDLE_CHECK(another_table_localhtsmt, self.localhdbc, clirc, 
                                    __LINE__, 
                                    "sqlstmt_check_table  SQLExecDirect", 
-                                   <bytes>__name__)
+                                   __FILE__)
 
-        clirc_fetch       = SQLFetch(another_table_localhtsmt)
+        clirc_fetch = SQLFetch(another_table_localhtsmt)
 
         str_TEST_BLK_INSERT_CUSTOMER = "TEST_BLK_INSERT_CUSTOMER"
 
         table_found = False
-
+        rows = []
+        my_table = self.my_table()
         while clirc_fetch == SQL_SUCCESS or clirc_fetch == SQL_SUCCESS_WITH_INFO :
             indicator1 = 0
-            memset(table_name,0,128)
+            memset(table_name, 0, 128)
             SQLGetData(another_table_localhtsmt,
                        1,
                        SQL_C_CHAR,
@@ -340,35 +370,90 @@ cdef class BulkInsert(ODBC_UTILS):
                        &indicator1)
             clirc_fetch = SQLFetch(another_table_localhtsmt)
 
-            mylog.info("table_name %-30s size '%d'" % ("'%s'" % self.process_to_char(table_name), indicator1) )
+            rows.append(["%-40s" % ("'%s'" % process_to_char(table_name)), "%d" % indicator1])
 
-            if table_name == self.process_to_char(str_TEST_BLK_INSERT_CUSTOMER):
+            if table_name == process_to_char(str_TEST_BLK_INSERT_CUSTOMER):
                 table_found = True
-                mylog.info("TEST_BLK_INSERT_CUSTOMER Found!!!, so I wont create it")
+                mylog.info("TEST_BLK_INSERT_CUSTOMER Found!!!")
                 clirc_fetch = SQL_ERROR
 
+        my_table.add_rows(rows, header = False)
+
+        mylog.info("\n%s\n" % my_table.draw())
+
         clirc = SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
+        clirc = SQLAllocHandle(SQL_HANDLE_STMT,
+                               self.localhdbc,
+                               &create__table_localhtsmt)
 
-        if not table_found:
-
+        if table_found:
             mylog.info("""executing 
+'%s'
+""" % sqlstmt_drop)
+            rc = SQLExecDirect(create__table_localhtsmt,
+                           process_to_char(sqlstmt_drop),
+                           SQL_NTS)
+
+            if rc == SQL_ERROR:
+                self.STMT_HANDLE_CHECK(create__table_localhtsmt,
+                       self.localhdbc,
+                       rc,
+                      __LINE__,
+                      "sqlstmt_drop  SQLExecDirect",
+                      __FILE__)
+            clirc = SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
+
+        mylog.info("""executing 
 '%s'
 """ % sqlstmt_create)
 
-            clirc = SQLAllocHandle(SQL_HANDLE_STMT,
-                                   self.localhdbc,
-                                   &create__table_localhtsmt)
+        rc = SQLExecDirect(create__table_localhtsmt,
+                           process_to_char(sqlstmt_create),
+                           SQL_NTS)
 
-            rc = SQLExecDirect(create__table_localhtsmt,
-                               self.process_to_char(sqlstmt_create),
-                               SQL_NTS)
-            if rc == SQL_ERROR:
-                pass
+        if rc == SQL_ERROR:
+            self.STMT_HANDLE_CHECK(create__table_localhtsmt, 
+                   self.localhdbc, 
+                   rc, 
+                   __LINE__, 
+                   "sqlstmt_create  SQLExecDirect", 
+                   __FILE__)
 
-            clirc = SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
-            clirc = SQLFreeHandle(SQL_HANDLE_STMT, create__table_localhtsmt)
+        clirc = SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_COMMIT)
+        if clirc != SQL_SUCCESS:
+            self.STMT_HANDLE_CHECK(create__table_localhtsmt, 
+                   self.localhdbc, 
+                   clirc,
+                   __LINE__,
+                   "SQLEndTran  self.localhdbc", 
+                   __FILE__)
+
+        clirc = SQLCloseCursor(another_table_localhtsmt)
+        if clirc != SQL_SUCCESS:
+            self.STMT_HANDLE_CHECK(another_table_localhtsmt, 
+                   self.localhdbc, 
+                   clirc,
+                   __LINE__,
+                   "another_table_localhtsmt  SQLCloseCursor", 
+                   __FILE__)
+
+        clirc = SQLFreeHandle(SQL_HANDLE_STMT, create__table_localhtsmt)
+        if clirc != SQL_SUCCESS:
+            self.STMT_HANDLE_CHECK(create__table_localhtsmt, 
+                   self.localhdbc, 
+                   clirc,
+                   __LINE__,
+                   "create__table_localhtsmt  SQLFreeHandle", 
+                   __FILE__)
 
         clirc = SQLFreeHandle(SQL_HANDLE_STMT, another_table_localhtsmt)
+        if clirc != SQL_SUCCESS:
+            self.STMT_HANDLE_CHECK(another_table_localhtsmt, 
+                   self.localhdbc, 
+                   clirc,
+                   __LINE__,
+                   "another_table_localhtsmt  SQLFreeHandle", 
+                   __FILE__)
 
     def set_the_data(self):
 
@@ -378,9 +463,8 @@ cdef class BulkInsert(ODBC_UTILS):
             else:
                 Name = "Y" * 20
 
-
-            strcpy(self.First_Name[i], self.process_to_char(Name))
-            strcpy(self.Last_Name[i],  self.process_to_char(Name)) 
+            strcpy(self.First_Name[i], process_to_char(Name))
+            strcpy(self.Last_Name[i],  process_to_char(Name)) 
             self.Cust_Num[i]     = i
             self.Last_Name_L[i]  = <SQLLEN>strlen(self.Last_Name[i])
             self.First_Name_L[i] = <SQLLEN>strlen(self.First_Name[i])
@@ -418,14 +502,17 @@ cdef class BulkInsert(ODBC_UTILS):
             mylog.debug("No errors")
 
     def connect(self):
+        cdef long long SQL_OV_ODBC3 = 3LL
+        cdef long long long_long_SQL_AUTOCOMMIT_OFF = SQL_AUTOCOMMIT_OFF
         mylog.info("connecting ")
 
         ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &self.h_env)
-        mylog.info("SQL_HANDLE_ENV %s " % ret)
+        if ret != SQL_SUCCESS:
+            mylog.error("SQL_HANDLE_ENV %s " % ret)
 
         clirc = SQLSetEnvAttr(self.h_env,
                               SQL_ATTR_ODBC_VERSION,
-                              <SQLPOINTER> SQL_OV_ODBC3, #SQL_OV_ODBC3_80, #
+                              <sqlcli.SQLPOINTER> SQL_OV_ODBC3, #SQL_OV_ODBC3_80, #
                               0L)
  
         clirc = SQLAllocHandle(SQL_HANDLE_DBC,
@@ -434,27 +521,28 @@ cdef class BulkInsert(ODBC_UTILS):
         mylog.info(" set AUTOCOMMIT SQL_AUTOCOMMIT_OFF %d" % SQL_AUTOCOMMIT_OFF)
 
         # connect to the database
-        #mylog.info("connecting dbAlias '%s' user '%s' user '%s'" % (
-        #    self.process_to_char(self.DB2_DATABASE),
-        #    self.process_to_char(self.DB2_USER),
-        #    self.DB2_USER))
-        mylog.info("connecting dbAlias '%s' user '%s' user '%s'" % (
+        mylog.info("connecting dbAlias '%s' user '%s' password '%s'" % (
             self.DB2_DATABASE,
             self.DB2_USER,
-            self.DB2_USER))
+            self.DB2_PASSWORD))
+
         clirc = SQLConnect(self.localhdbc,
-                           self.process_to_char(self.DB2_DATABASE),
+                           process_to_char(self.DB2_DATABASE),
                            SQL_NTS,
-                           self.process_to_char(self.DB2_USER),
+                           process_to_char(self.DB2_USER),
                            SQL_NTS,
-                           self.process_to_char(self.DB2_PASSWORD),
+                           process_to_char(self.DB2_PASSWORD),
                            SQL_NTS)
-        #mylog.info("  Connected to ..'%s' for BulkInsert clirc '%d'" % (self.process_to_char(self.DB2_DATABASE), clirc))
+        if clirc != SQL_SUCCESS:
+            mylog.error("could not connect %d", clirc)
+
+        self.DBC_HANDLE_CHECK(self.localhdbc, clirc, lineno(), "SQLConnect", __FILE__)
+
         mylog.info("  Connected to ..'%s' for BulkInsert clirc '%d'" % (self.DB2_DATABASE, clirc))
 
         clirc = SQLSetConnectAttr(self.localhdbc,
                                   SQL_ATTR_AUTOCOMMIT,
-                                  <SQLPOINTER>SQL_AUTOCOMMIT_OFF,
+                                  <sqlcli.SQLPOINTER>long_long_SQL_AUTOCOMMIT_OFF,
                                   SQL_NTS)
         if clirc != SQL_SUCCESS:
             return SQL_ERROR
@@ -466,7 +554,7 @@ cdef class BulkInsert(ODBC_UTILS):
 
     cdef deallocate_stmt(self):
         clirc = SQLCloseCursor(self.localhtsmt)
-        self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, clirc, __LINE__, "SQLCloseCursor", <bytes>__name__)
+        self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, clirc, __LINE__, "SQLCloseCursor", __FILE__)
         if clirc != SQL_SUCCESS:
             mylog.error("SQLCloseCursor clirc %d" % clirc)
 
@@ -494,7 +582,7 @@ cdef class BulkInsert(ODBC_UTILS):
 """ % str_count)
 
         rc = SQLExecDirect(another_localhtsmt,
-                           self.process_to_char(str_count),
+                           process_to_char(str_count),
                            SQL_NTS)
 
         if rc != SQL_SUCCESS:
@@ -527,10 +615,10 @@ cdef class BulkInsert(ODBC_UTILS):
 %s
 """ % str_reorg_cmd)
         clirc = SQLExecDirect(another_localhtsmt,
-                             self.process_to_char(str_reorg_cmd),
+                             process_to_char(str_reorg_cmd),
                               SQL_NTS)
 
-        self.STMT_HANDLE_CHECK(another_localhtsmt, self.localhdbc, clirc, __LINE__, "SQLExecDirect ", <bytes>__name__)
+        self.STMT_HANDLE_CHECK(another_localhtsmt, self.localhdbc, clirc, __LINE__, "SQLExecDirect ", __FILE__)
 
         if clirc != SQL_SUCCESS:
             mylog.error("SQLExecDirect %d" % clirc)
@@ -572,7 +660,7 @@ cdef class BulkInsert(ODBC_UTILS):
 %s
 """ % str_lock)
         rc = SQLExecDirect(self.localhtsmt,
-                           self.process_to_char(str_lock),
+                           process_to_char(str_lock),
                            SQL_NTS)
         #self.db2_cli_test.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, __LINE__, "str_lock SQLExecDirect", __name__)
         if rc != SQL_SUCCESS:
@@ -587,7 +675,7 @@ cdef class BulkInsert(ODBC_UTILS):
 %s
 """ % str_alter)
         rc = SQLExecDirect(self.localhtsmt,
-                           self.process_to_char(str_alter),
+                           process_to_char(str_alter),
                            SQL_NTS)
         self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, __LINE__, "str_alter SQLExecDirect", __FILE__)
         if rc != SQL_SUCCESS:
@@ -606,7 +694,7 @@ cdef class BulkInsert(ODBC_UTILS):
 
 
         if self.DB2_DATABASE == "HOME_OUTSIDE":
-            self.ROWSET_SIZE = 5000
+            self.ROWSET_SIZE = 5000LL
             self.ITERACTIONS = 10
 
         ret = self.connect()
@@ -652,8 +740,8 @@ cdef class BulkInsert(ODBC_UTILS):
             mylog.info("""Performing bulk insert batch %d 
 %s""" % (i, str_select))
 
-        rc = SQLExecDirect(self.localhtsmt, self.process_to_char(str_select), SQL_NTS)
-        self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, __LINE__, "str_select SQLExecDirect", __FILE__)
+        rc = SQLExecDirect(self.localhtsmt, process_to_char(str_select), SQL_NTS)
+        self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, lineno(), "str_select SQLExecDirect", __FILE__)
 
         if rc != SQL_SUCCESS:  
             mylog.error("SQLExecDirect %d" % rc)
@@ -674,10 +762,14 @@ cdef class BulkInsert(ODBC_UTILS):
             start_time_per_batch = datetime.now()
 
             rc = SQLBulkOperations(self.localhtsmt, SQL_ADD)
-            self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, __LINE__, "SQL_ADD SQLBulkOperations", __FILE__)
+            self.STMT_HANDLE_CHECK(self.localhtsmt, self.localhdbc, rc, lineno(), "SQL_ADD SQLBulkOperations", __FILE__)
             if rc != SQL_SUCCESS:
                 end_time  = datetime.now() - start_time_per_batch
-                mylog.info("doing the SQL_ADD count %d committed end_time '%s' ROWSET_SIZE = '%d' total_inserted= '%d'" % (j, end_time, self.ROWSET_SIZE, self.total_inserted))
+                mylog.info("doing the SQL_ADD count %d committed end_time '%s' ROWSET_SIZE = '%d' total_inserted= '%d'" % (
+                    j, 
+                    end_time, 
+                    self.ROWSET_SIZE, 
+                    self.total_inserted))
                 mylog.error("SQLBulkOperations %d j %d" % (rc, j))
                 clirc = SQLEndTran(SQL_HANDLE_DBC, self.localhdbc, SQL_ROLLBACK)
                 self.deallocate_stmt()
@@ -701,7 +793,7 @@ cdef class BulkInsert(ODBC_UTILS):
     cdef close(self):
 
         clirc = SQLDisconnect(self.localhdbc)
-        #mylog.info("  Disconnected from '%s' clirc '%d' " % (self.process_to_char(self.DB2_DATABASE), clirc))
+        #mylog.info("  Disconnected from '%s' clirc '%d' " % (process_to_char(self.DB2_DATABASE), clirc))
         mylog.info("  Disconnected from '%s' clirc '%d' " % (self.DB2_DATABASE, clirc))
 
         # free connection handle #

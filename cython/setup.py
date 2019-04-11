@@ -2,28 +2,28 @@
 
 #from setuptools import setup
 # I moved from distutils.core.setup to setuptools.setup
-#from distutils.core import setup
 from distutils.debug import DEBUG
 from distutils.core import gen_usage
 import inspect
+import errno
 #import distutils.core 
-from distutils import log
+#from distutils import log
+from texttable import Texttable
+import logging
+import logging.handlers
+
+import platform
+import pprint
+from distutils.file_util import copy_file #@UnusedImport I was using this but changed to copy the whole directorycopy_tree
+from distutils.dir_util import remove_tree
+
+
 try:
     from distutils.command.build_ext import show_compilers
     show_compilers()
 
 except Exception as e:
     print("cant print show_compilers")
-#from Cython.Build import cythonize
-import logging
-import logging.handlers
-
-import platform
-import pprint
-
-from distutils.file_util import copy_file #@UnusedImport I was using this but changed to copy the whole directorycopy_tree
-#from distutils.dir_util import copy_tree
-from distutils.dir_util import remove_tree
 
 
 #import distutils.dir_util
@@ -31,8 +31,9 @@ from distutils.dir_util import remove_tree
 #Changed distutils.extension import Extension to setuptools import Extension so if VC++ 2009 is under 
 #C:\Users\jsierra\AppData\Local\Programs\Common\Microsoft\Visual C++ for Python\9.0 it will use it
 import setuptools
-#from setuptools import Extension
-from Cython.Distutils import build_ext
+#from Cython.Distutils import build_ext
+from setuptools.command.build_ext import build_ext
+
 from distutils.errors import (CCompilerError, DistutilsExecError, DistutilsPlatformError)
 import os, sys
 import types
@@ -40,6 +41,12 @@ DB2PATH = os.environ.get("DB2PATH", None)
 if DB2PATH is None:
     print ("env variable DB2PATH not defined")
     sys.exit(0)
+
+try:
+    os.mkdir('log')
+except OSError as e:
+    if e.errno != errno.EEXIST:
+        print ("creating directory 'log'  OSError %s" % e)
 
 try:
     os.remove("connect_odbc.c")
@@ -86,11 +93,11 @@ DEBUG = True
 #log.set_verbosity(log.DEBUG) # Set DEBUG level
 os.environ['DISTUTILS_DEBUG']='True' 
 
-log.debug("setup                            %s %s \n%s " , 
-          (type(setuptools.setup), 
-           setuptools.setup.__module__, 
+log.debug("setup                            %s %s \n%s " ,
+          (type(setuptools.setup),
+           setuptools.setup.__module__,
            pprint.pformat(dir(setuptools.setup))))  #@UndefinedVariable
-log.debug("setup.__doc__                    %s " , 
+log.debug("setup.__doc__                    %s " ,
           setuptools.setup.__doc__)  #@UndefinedVariable
 log.debug("gen_usage                         \n%s " % gen_usage("setup.py"))
 log.debug("build_ext     %s %s \n%s " % (
@@ -104,155 +111,154 @@ class BuildFailed(Exception):
     def __init__(self):
         self.cause = sys.exc_info()[1]  # work around py 2/3 different syntax
 
-class My_build_ext(build_ext):
+class MyBuildExt(build_ext):
     """This class allows C extension building to fail."""
     first_time = True
     def __init__(self, *args, **kwargs):
 
-        #print (type(build_ext.user_options))
-        #sys.exit(0)
+        self.table = self.set_table()
         long_str = ""
         for user_option in build_ext.user_options:
             long_str += "%s %s %s \n" % user_option
 
-
+        self.max_first_part_len = 0
         build_ext.__init__(self, *args)
-        #print self.verbose
-        #sys.exit(0)
         if self.verbose > 0:
-            log.info("build_ext.user_option \n%s" % long_str) 
+            self.table.add_row(["build_ext.user_option", "%s" % long_str]) 
 
             log.info("args '%s' kwargs '%s' type *args %s" % (args, kwargs, type(*args)) )
             log.debug("%s \n%s" % (type(*args), pprint.pformat(dir(*args))))
 
-            log.info("type(build_ext)        %s" % type(build_ext))
-        #self.cython_gen_pxi = 1
-        #self.cython_create_listing = 1
+            self.table.add_row(["type(build_ext)", "%s" % type(build_ext)])
+
+    def set_table(self):
+        mytable = Texttable()
+        mytable.set_deco(Texttable.HEADER)
+        mytable.set_cols_dtype(['t', 't'])
+        header_str = "label value"
+        mytable.set_header_align(['t', 't'])
+        mytable.header(header_str.split())
+        if platform.system() == "Darwin":
+            mytable.set_cols_width( [60, 100])
+        else:
+            mytable.set_cols_width( [75, 120])
+        return mytable
+
+    def remove_old_build(self):
+
+        for extension in self.extensions:
+            self.file_name_pyd = extension._file_name
+            log.info("removing      '%s'" % self.file_name_pyd)
+            try:
+                os.remove("%s" % self.file_name_pyd)
+            except OSError as e:
+                if e.errno not in  [errno.EEXIST, errno.ENOENT] :
+                    log.error("OSError '%s'" % e)
+
+        log.info("removing tree '%s'" % self.build_lib)
+        try:
+            remove_tree(self.build_lib)
+        except OSError as e:
+            if e.errno not in  [errno.EEXIST, errno.ENOENT] :
+                log.error("OSError '%s'" % e)
 
     def run(self):
         try:
-            #log.info("run")
-            try:
-                if self.verbose > 0:
-                    log.info("removing *.pyd")
-                os.system("del *.pyd")
-                if self.verbose > 0:
-                    log.info("removing tree %s" % self.build_lib)
-                remove_tree(self.build_lib)
-            except:
-                pass   
+            self.remove_old_build()
+            log.info("calling run")
             build_ext.run(self)
         except DistutilsPlatformError as e:
             log.error("DistutilsPlatformError %s" % e)
             raise BuildFailed()
+        except ImportError as e:
+            log.error("ImportError \n%s" % e)
+            #raise BuildFailed()
 
     def cython_sources(self, sources, extension):
         if self.verbose > 0:
-            log.info("sources '%s' extension '%s'" % (sources, extension))
-        new_sources = build_ext.cython_sources(self, sources, extension)
-        if self.verbose > 0:
-            log.info("new_sources '%s' " % new_sources)
-        if self.verbose > 0:
-            self.log_some_values(self)
-        #log.info("options %s" % self.options)
-        return new_sources 
+            self.table.add_row(["sources", sources])
+            self.table.add_row(["extension", extension])
 
-    def log_class(self, ext): 
+        new_sources = build_ext.cython_sources(self, sources, extension)
+
+        if self.verbose > 0:
+            self.table.add_row(["new_sources", new_sources])
+            #log.info("new_sources '%s' " % new_sources)
+
+        #log.info("options %s" % self.options)
+        return new_sources
+
+    def log_class(self, ext):
         class_name = ext.__module__ + "." + ext.__class__.__name__
         class_file = inspect.getfile(ext.__class__)
-        log.info("\nclass_name '%s' \nfile '%s'", class_name,  class_file)
+        if "__main__" in class_name:
+            class_name = class_name.replace("__main__.", "")
+        self.table.add_row(["class_name", "'%s'" % class_name])
+        self.table.add_row(["file", "'%s'" % class_file])
         for attr in dir(ext):
             attr_val = getattr(ext, attr)
             if not type(attr_val) == types.MethodType:
                 if not attr.startswith('__'):
                     #print type(getattr(ext, attr))
-                    if type(attr_val) != list:
-                        log.info("%s.%-20s '%s'" % (class_name, attr, attr_val))
+                    #if attr == "_ldflags":
+                    #    print (type(attr_val), isinstance(attr_val, dict))
+                    #    for key in attr_val.keys():
+                    #        print (["%s.%-20s[%s]" % (class_name, attr, key), "%s" %  str(attr_val[key])])
+
+                    first_part = "%s.%s" % (class_name, attr)
+
+                    if attr == "_paths":
+                        attr_val = attr_val.split(";")
+
+                    if len(first_part) > self.max_first_part_len:
+                        self.max_first_part_len = len(first_part)
+
+                    if type(attr_val) not in [list, dict]:
+                        if attr_val is not None:
+                            self.table.add_row([first_part,  "'%s'" % attr_val])
+
+                    elif isinstance(attr_val, dict):
+                        for key in attr_val.keys():
+                            first_part = "%s.%s[%s]" % (class_name, attr, key)
+
+                            if len(first_part) > self.max_first_part_len:
+                                self.max_first_part_len = len(first_part)
+
+                            self.table.add_row([first_part,
+                                                "%s" %  str(attr_val[key])])
                     else:
-                        long_str = ""
                         for element in attr_val:
-                            long_str = "%s\n" % str(element)
-                        log.info("%s.%-20s \n'%s' " % (class_name, attr, long_str))
-
-    def log_some_values(self, ext):
-        self.log_class(ext)
-
-            #sys.exit(0)    
-
-        log.info("build_ext.build_lib     '%s'" % self.build_lib)
-        log.info("build_ext.build_temp    '%s'" % self.build_temp)
-        log.info("build_ext.__module__    '%s'" % self.__module__)
-        log.info("cython_cplus            '%s'" % self.cython_cplus)
-        log.info("cython_create_listing   '%s'" % self.cython_create_listing)
-        log.info("cython_line_directives  '%s'" % self.cython_line_directives)
-        log.info("cython_include_dirs     '%s'" % self.cython_include_dirs)
-        log.info("cython_directives       '%s'" % self.cython_directives)
-        log.info("cython_c_in_temp        '%s'" % self.cython_c_in_temp)
-        log.info("cython_gen_pxi          '%s'" % self.cython_gen_pxi)
-        log.info("cython_gdb              '%s'" % self.cython_gdb)
-        log.info("no_c_in_traceback       '%s'" % self.no_c_in_traceback)
-
-        if hasattr(ext, "compiler"):
-            log.info("compiler                '%s'" % ext.compiler)
-            log.info("compiler.compiler_type  '%s'" % ext.compiler.compiler_type)
-            #if ext.compiler.compiler_type == "msvc":
-            #    self.log_class(ext.compiler)
-
-        log.info("cython_compile_time_env '%s'\n\n\n" % self.cython_compile_time_env)
+                            self.table.add_row([first_part, "%s" %  str(element)])
 
     def log_compiler(self):
-        class_file = inspect.getfile(self.compiler.__class__)
-        log.info("compiler                       '%s'" %  self.compiler) 
         # under windows python2.7 distutils.msvc9compiler.MSVCCompiler
         # under windows python3.6 distutils._msvccompiler.MSVCCompiler
-        log.info("compiler                       '%s' file '%s' " % ( self.compiler.__class__, class_file))
-        class_name = self.compiler.__module__ + "." + self.compiler.__class__.__name__
-        for attr in dir(self.compiler):
-            if attr in ["__dir__", 
-            "__le__" , 
-            "__dict__", 
-            "__delattr__", 
-            "__format__",
-            "__reduce_ex__",
-            "__new__",
-            "__hash__",
-            "__subclasshook__",
-            "__getattribute__",
-            "__init_subclass__"]:
-                continue
-            attr_val = getattr(self.compiler, attr)
-            if attr == "_paths":
-                attr_val = attr_val.split(";")
-            if not type(attr_val) == types.MethodType:
-                if type(attr_val) not in [list, dict]:
-                    if attr in ["_vcruntime_redist", "cc"]:
-                        new_line = "\n"
-                    else:
-                        new_line = ""
-                    log.info("%s.%-20s %s'%s'" % (class_name, attr, new_line, attr_val))
-                else:
-                    log.info("%s.%-20s \n'%s'" % (class_name, attr, pprint.pformat(attr_val)))
+        self.log_class(self.compiler)
+
+        return
+
 
     def build_extension(self, ext):
         try:
-            if self.verbose > 0:
-                self.log_some_values(ext)
-            if My_build_ext.first_time:
+            if MyBuildExt.first_time:
                 # lets remove the previous build
-                My_build_ext.first_time = False
-                if platform.system() == "Windows":
-                    cmd = "del  %s\*.* /q" % self.build_lib
-                    log.info(cmd)
-                    os.system(cmd)
-                else:
-                    cmd = "rm %s/*" % self.build_lib
-                    log.info(cmd)
-                    os.system(cmd)
+                MyBuildExt.first_time = False
+                #if platform.system() == "Windows":
+                #    cmd = "del  %s\*.* /q" % self.build_lib
+                #    log.info(cmd)
+                #    os.system(cmd)
+                #else:
+                #    cmd = "rm %s/*" % self.build_lib
+                #    log.info(cmd)
+                #    os.system(cmd)
 
-            ext.cython_create_listing = 1  #write errors to a listing file
-            ext.cython_cplus = 0           #generate C++ source files ? we are generating .c files not .cpp
-            ext.cython_line_directives = 1 #emit source line directives
-            ext.cython_gen_pxi = 1         #generate .pxi file for public declarations
+            ext.cython_create_listing = True  #write errors to a listing file
+            ext.cython_cplus = False           #generate C++ source files ? we are generating .c files not .cpp
+            ext.cython_line_directives = True #emit source line directives
+            ext.cython_gen_pxi = True         #generate .pxi file for public declarations
+            ext.cython_gdb = False
+            ext.no_c_in_traceback = False
+            self.log_class(ext)
             #build_ext.build_extension(self, ext)
             if self.verbose > 0:
                 self.log_compiler()
@@ -261,9 +267,10 @@ class My_build_ext(build_ext):
                 import distutils
                 if hasattr(distutils, "unixccompiler"):  
                     if isinstance(self.compiler, distutils.unixccompiler.UnixCCompiler):
-                        log.info("compiler is distutils.unixccompiler.UnixCCompiler")
+                        log.debug("compiler is distutils.unixccompiler.UnixCCompiler")
                         try:
-                            self.compiler.include_dirs.remove("/usr/local/include") 
+                            if "/usr/local/include" in self.compiler.include_dirs:
+                                self.compiler.include_dirs.remove("/usr/local/include") 
                             # db2 sqltypes.h create problems with /usr/local/include/sqltypes.h
                         except ValueError as e:
                             log.error("ValueError %s" % e)
@@ -272,7 +279,7 @@ class My_build_ext(build_ext):
 
                 if hasattr(self, '_built_objects'):
                     if self.verbose > 0:
-                        log.info("_built_objects                 %s" % self._built_objects)
+                        self.table.add_row(["_built_objects" , "%s" % self._built_objects])
             except AttributeError as e:
                 log.error("AttributeError %s" % e)
 
@@ -282,7 +289,13 @@ class My_build_ext(build_ext):
             if self.verbose > 0:
                 log.info("done building")
 
+            self.table._width[0] = self.max_first_part_len
+            log.info("\n%s" % self.table.draw())
+
         except ext_errors as e:
+            self.table._width[0] = self.max_first_part_len
+            log.info("\n%s" % self.table.draw())
+
             log.error("%s %s" % (type(e),e))
             raise #BuildFailed()
         except ValueError:
@@ -292,21 +305,22 @@ class My_build_ext(build_ext):
             raise
 
 if platform.system() == "Windows":
-    libraries = ["db2api"]          # refers to "libexternlib.so"
+    libraries = ["db2api"] 
     extra_link_args=[
                    #"/VERBOSE",
-                   "/ignore:4197", # export 'initconnect_odbc' specified multiple times; using first specification
-                   "/LIBPATH:%s\\lib" % DB2PATH]
+                   "/ignore:4197"] # export 'initconnect_odbc' specified multiple times; using first specification
+                   #"/LIBPATH:%s\\lib" % DB2PATH]
     extra_compile_args=[
                     #"/openmp", 
                     "/O2",    #  /O2 optimizes code for maximum speed.
                     #"-I/usr/local/include",
-                    #"-I%s\\samples\\cli" % DB2PATH,
-                    "-I%s\\include" % DB2PATH]
+                    ]
+    include_dirs = ["%s\\include" % DB2PATH]
+    library_dirs = ["%s\\lib" % DB2PATH]
 
 
 else: # Mac Linux AIX ?
-    libraries = ["db2"]          # refers to "libexternlib.so"
+    libraries = ["db2"]  
     lib64_path = os.path.join(DB2PATH, "lib64")
     include_path = os.path.join(DB2PATH, "include")
 
@@ -318,20 +332,24 @@ else: # Mac Linux AIX ?
         log.error("include_path doesnt exist '%s'" % include_path)
         sys.exit(0)
 
+    include_dirs = [include_path]
+
     extra_link_args=[
                     #"-v", #verbose
-                   "-DSOME_DEFINE_OPT",
-                   "-L%s" % lib64_path]
+                   "-DSOME_DEFINE_OPT"]
+                   #"-L%s" % lib64_path]
     extra_compile_args=[
-                    "-v", #verbose
+                    #"-v", #verbose
                     #"-fopenmp",
                     "-O3",
                     "-w", # no warnings
                     #"-Wstrict-prototypes",
                     #"-Wimplicit-function-declaration",
                     #"-I/usr/local/include",
-                    #"-I%s/samples/cli" % DB2PATH,
-                    "-I%s" % include_path]
+                    #"-I%s/samples/cli" % DB2PATH]
+                    ]
+
+    library_dirs = [lib64_path]
 
 if sys.version_info > (3,):
     export_symbols = ['PyInit_connect_odbc']
@@ -351,6 +369,8 @@ ext1 = setuptools.Extension(
                   export_symbols = export_symbols,
                   undef_macros = ['MACRO1', 'MACRO2'],
                   libraries=libraries,
+                  library_dirs=library_dirs,
+                  include_dirs=include_dirs,
                   language = "c",
                   #language="c++",                   # remove this if C and not C++
                   extra_compile_args=extra_compile_args,
@@ -366,6 +386,8 @@ ext2 = setuptools.Extension(name = "bulk_insert",
                   libraries=libraries,
                   undef_macros = ['MACRO1', 'MACRO2'],
                   language = "c",
+                  library_dirs=library_dirs,
+                  include_dirs=include_dirs,
                   #language="c++",                   # remove this if C and not C++
                   extra_compile_args=extra_compile_args,
                   extra_link_args=extra_link_args
@@ -379,8 +401,8 @@ setuptools.setup(
     description='My cython test to connect to DB2 ODBC and do a bulk insert',
     author='Jorge Sierra',
     author_email='asierra01@gmail.com',
-    zip_safe=True,
-    cmdclass = {'build_ext'      : My_build_ext,
+    zip_safe=False,
+    cmdclass = {'build_ext'      : MyBuildExt,
                 'cython_gen_pxi' : True},
 
     ext_modules = [ext1, ext2]

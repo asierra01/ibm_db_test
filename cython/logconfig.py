@@ -6,8 +6,8 @@ import os
 __all__ = ['mylog']
 global mylog
 
-#format_hdlr = "%(asctime)s %(levelname)5s:%(lineno)s - %(module)10s %(funcName)12s() %(message)s  "
-format_hdlr = "%(levelname)5s %(lineno)4s - %(module)22s %(funcName)15s() %(message)s  "
+format_hdlr = "%(asctime)s %(levelname)5s:%(lineno)s - %(module)10s %(funcName)12s() %(message)s  "
+#format_hdlr = "%(levelname)5s %(lineno)4s - %(module)22s %(funcName)15s() %(message)s  "
 
 try:
     os.mkdir('log')
@@ -42,11 +42,11 @@ hdlr.setLevel(logging.INFO)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
-formatter = logging.Formatter(format_hdlr)
+formatter = logging.Formatter(format_hdlr, "%H:%M:%S") # "%Y-%m-%d %H:%M:%S"
 ch.setFormatter(formatter)
 hdlr.setFormatter(formatter)
 
-mylog     = logging.getLogger(__name__)
+mylog = logging.getLogger(__name__)
 mylog.addHandler(ch)
 mylog.addHandler(hdlr)
 mylog.setLevel(logging.INFO)

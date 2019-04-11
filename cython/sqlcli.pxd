@@ -56,7 +56,7 @@ cdef extern from "sqlcli.h":
         # SQLTransact option values  
         SQL_COMMIT
         SQL_ROLLBACK
-        
+
         # Standard SQL data types */
         SQL_UNKNOWN_TYPE
         SQL_CHAR
@@ -75,7 +75,7 @@ cdef extern from "sqlcli.h":
         SQL_WVARCHAR
         SQL_WLONGVARCHAR
         SQL_DECFLOAT
-        
+
         #One-parameter shortcuts for date/time data types */
         SQL_TYPE_DATE
         SQL_TYPE_TIME
@@ -89,8 +89,8 @@ cdef extern from "sqlcli.h":
         SQL_TIME_LEN
         SQL_TIMESTAMP_LEN
         SQL_TIMESTAMPTZ_LEN
-        
-        
+
+
         # SQL extended data types */
         SQL_GRAPHIC
         SQL_VARGRAPHIC

@@ -6,12 +6,13 @@ from sql cimport *
 from sqlcli cimport *
 from sqlcodes cimport *
 from sqlext cimport *
+from sqlenv cimport *
 from texttable import Texttable
 from libc.string cimport memset, strlen, strcpy
 import sys
 import traceback
 
-from cpython.object cimport * 
+from cpython.object cimport *
 #from cpython.object cimport PyObject
 
 
@@ -20,27 +21,27 @@ from logconfig import mylog
 
 
 str_sql_dict = {
-    'SQL_UNKNOWN_TYPE'   : SQL_UNKNOWN_TYPE, 
-    'SQL_CHAR'           : SQL_CHAR,
-    'SQL_NUMERIC'        : SQL_NUMERIC,
-    'SQL_DECIMAL'        : SQL_DECIMAL, 
-    'SQL_INTEGER'        : SQL_INTEGER,
-    'SQL_SMALLINT'       : SQL_SMALLINT,
-    'SQL_FLOAT'          : SQL_FLOAT,
-    'SQL_REAL'           : SQL_REAL,
-    'SQL_DOUBLE'         : SQL_DOUBLE,
-    'SQL_DATETIME'       : SQL_DATETIME,
-    'SQL_VARCHAR'        : SQL_VARCHAR,
-    'SQL_BOOLEAN'        : SQL_BOOLEAN,
-    'SQL_ROW'            : SQL_ROW,
-    'SQL_WCHAR'          : SQL_WCHAR,
-    'SQL_WVARCHAR'       : SQL_WVARCHAR,
-    'SQL_WLONGVARCHAR'   : SQL_WLONGVARCHAR,
-    'SQL_DECFLOAT'       : SQL_DECFLOAT,
+    'SQL_UNKNOWN_TYPE'       : SQL_UNKNOWN_TYPE, 
+    'SQL_CHAR'               : SQL_CHAR,
+    'SQL_NUMERIC'            : SQL_NUMERIC,
+    'SQL_DECIMAL'            : SQL_DECIMAL,
+    'SQL_INTEGER'            : SQL_INTEGER,
+    'SQL_SMALLINT'           : SQL_SMALLINT,
+    'SQL_FLOAT'              : SQL_FLOAT,
+    'SQL_REAL'               : SQL_REAL,
+    'SQL_DOUBLE'             : SQL_DOUBLE,
+    'SQL_DATETIME'           : SQL_DATETIME,
+    'SQL_VARCHAR'            : SQL_VARCHAR,
+    'SQL_BOOLEAN'            : SQL_BOOLEAN,
+    'SQL_ROW'                : SQL_ROW,
+    'SQL_WCHAR'              : SQL_WCHAR,
+    'SQL_WVARCHAR'           : SQL_WVARCHAR,
+    'SQL_WLONGVARCHAR'       : SQL_WLONGVARCHAR,
+    'SQL_DECFLOAT'           : SQL_DECFLOAT,
     # One-parameter shortcuts for date/time data types 
-    'SQL_TYPE_DATE'      : SQL_TYPE_DATE,
-    'SQL_TYPE_TIME'      : SQL_TYPE_TIME,
-    'SQL_TYPE_TIMESTAMP' : SQL_TYPE_TIMESTAMP,
+    'SQL_TYPE_DATE'          : SQL_TYPE_DATE,
+    'SQL_TYPE_TIME'          : SQL_TYPE_TIME,
+    'SQL_TYPE_TIMESTAMP'     : SQL_TYPE_TIMESTAMP,
     # SQL Datatype for Time Zone
     'SQL_TYPE_TIMESTAMP_WITH_TIMEZONE' : SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,
     'SQL_C_DEFAULT'          : SQL_C_DEFAULT,
@@ -69,6 +70,22 @@ str_sql_dict = {
     'SQL_GUID'               : SQL_GUID
 }
 
+def process_to_char(s):
+    """helper function to handle py3 unicode strings"""
+    try:
+        #mylog.info("here %s" % type(s))
+        if isinstance(s, bytes):
+            tmp = (<bytes>s).decode('utf8')
+            return tmp
+        elif isinstance(s, str):
+            #mylog.info("str here %s" % s)
+            return s
+        else:
+            return s.encode('ascii')
+    except Exception as e:
+        mylog.error("process_to_char %s %s" % (type(e), e))
+        return ""
+
 
 cdef class ODBC_UTILS:
     """Utility class for error checking....
@@ -85,17 +102,26 @@ cdef class ODBC_UTILS:
         pass
         #self.localhtsmt = hstmt
 
-    def process_to_char(self, s):
-        """helper function to handle py3 unicode strings"""
-        if isinstance(s, bytes):
-            #mylog.info("s is bytes type %s" % type((<bytes>s).decode('utf8')))
-            return (<bytes>s).decode('utf8')
-        else:
-            #mylog.info("s is not bytes type %s" % type(s))
-            return s.encode('ascii')
-            #return s
-            #return s.encode('utf-8','ignore')
-        #return s
+    def set_table(self):
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.set_cols_dtype(['t',
+                             't',
+                             't',
+                             't',
+                             't',
+                             't'])
+        table.set_cols_align(["l",  "r", "l", "r", "r", "l"])
+        table.set_header_align(["l",  "r", "l", "r", "r", "l"])
+        table.header(["col no.",
+                      "pfSqlType",
+                      "sql type",
+                      "pibScale",
+                      "pcbColDef",
+                      "pfNullable"])
+        table.set_cols_width([4,  10, 20, 10, 10, 10])
+        return table
+
 
     cdef describe_parameters(self, SQLHSTMT hstmt):
         """this function uses SQLDescribeParam to describe the cursor parameters
@@ -103,7 +129,7 @@ cdef class ODBC_UTILS:
 
         Parameters
         ----------
-        hstmt : SQLHSTMT
+        hstmt : `SQLHSTMT`
         
         """
         cdef : 
@@ -120,29 +146,14 @@ cdef class ODBC_UTILS:
             mylog.warn("SQLNumParams NOC=0")
             return
 
-        self.STMT_HANDLE_CHECK(my_hstmt, self.localhdbc, rc, lineno(), "SQLNumParams")
+        self.STMT_HANDLE_CHECK(my_hstmt, self.localhdbc, rc, __LINE__, "SQLNumParams")
         mylog.info("SQLNumParams %s" % NOC)
-        table = Texttable()
-        table.set_deco(Texttable.HEADER)
-        table.set_cols_dtype(['t',
-                             't',
-                             't',
-                             't',
-                             't',
-                             't'])
-        table.set_cols_align(["l",  "r", "l", "r", "r", "l"])
-        table.set_header_align(["l",  "r", "l", "r", "r", "l"])
-        table.header(["col no.", 
-                      "pfSqlType", 
-                      "sql type", 
-                      "pibScale", 
-                      "pcbColDef", 
-                      "pfNullable"])
-        table.set_cols_width([4,  10, 20, 10, 10, 10])
+
+        table = self.set_table()
+
         rc = 0
         while column_count < NOC : #rc == SQL_SUCCESS or rc == SQL_SUCCESS_WITH_INFO:
             column_count += 1
-            #mylog.info("column %d" % column_count )
             rc = self.describe_parameter(my_hstmt, column_count, table)
 
         mylog.info("\n\n%s\n" % table.draw())
@@ -151,12 +162,12 @@ cdef class ODBC_UTILS:
         '''
         Parameters
         ----------
-        hstmt:  : SQLHSTMT
-        col:    : SQLUSMALLINT
-        table:  : :class:`texttable.TextTable`
+        hstmt:  : `SQLHSTMT`
+        col:    : `SQLUSMALLINT`
+        table:  : :class:`texttable.Texttable`
 
-        SQLRETURN  SQLDescribeParam  (SQLHSTMT          hstmt,
-                                      SQLUSMALLINT      ipar,
+        SQLRETURN  SQLDescribeParam  (SQLHSTMT            hstmt,
+                                      SQLUSMALLINT        ipar,
                                       SQLSMALLINT FAR     *pfSqlType,
                                       SQLULEN     FAR     *pcbColDef,
                                       SQLSMALLINT FAR     *pibScale,
@@ -168,22 +179,22 @@ cdef class ODBC_UTILS:
             SQLSMALLINT pibScale
             SQLSMALLINT pfNullable
         #mylog.debug("column name size %d" % sizeof(column_name)) #yes is 100
-        rc4 = SQLDescribeParam(hstmt,
+        rc = SQLDescribeParam(hstmt,
                                col,
                                &pfSqlType,
                                &pcbColDef,
                                &pibScale,
                                &pfNullable)
-        self.STMT_HANDLE_CHECK(hstmt, self.localhdbc, rc4, lineno(), "SQLDescribeParam")
+        self.STMT_HANDLE_CHECK(hstmt, self.localhdbc, rc, __LINE__, "SQLDescribeParam")
 
         str_sql_type = ""
+
         for key in str_sql_dict.keys():
-            #if pfSqlType.value in str_sql_list.values() and\
             if pfSqlType.value == str_sql_dict[key]:
                 str_sql_type = key
                 break
-                #print key,my_dict[key]
-        if rc4 == SQL_SUCCESS or rc4 == SQL_SUCCESS_WITH_INFO:
+
+        if rc == SQL_SUCCESS or rc == SQL_SUCCESS_WITH_INFO:
             my_row = [col,
                       pfSqlType.value,
                       str_sql_type,
@@ -192,7 +203,7 @@ cdef class ODBC_UTILS:
                       pfNullable]
             table.add_row(my_row)
 
-        return rc4
+        return rc
 
     cdef describe_columns(self, SQLHSTMT hstmt):
         """this function uses SQLDescribeCol to describe the cursor columns
@@ -212,7 +223,7 @@ cdef class ODBC_UTILS:
 
         self.max_column_name_size = 0 
         rc = SQLNumResultCols(my_hstmt, &NOC)
-        self.STMT_HANDLE_CHECK(my_hstmt, self.localhdbc, rc, lineno(), "SQLNumResultCols")
+        self.STMT_HANDLE_CHECK(my_hstmt, self.localhdbc, rc, __LINE__, "SQLNumResultCols", __FILE__)
         mylog.debug("SQLNumResultCols %s" % NOC)
         table = Texttable()
         table.set_deco(Texttable.HEADER)
@@ -252,7 +263,7 @@ cdef class ODBC_UTILS:
         ----------
         hstmt:  : SQLHSTMT
         col:    : SQLUSMALLINT
-        table:  : :class:`texttable.TextTable`
+        table:  : :class:`texttable.Texttable`
         Used ODBC
         SQLRETURN   SQLDescribeCol   ( SQLHSTMT          hstmt,
                                         SQLUSMALLINT      icol,
@@ -275,7 +286,7 @@ cdef class ODBC_UTILS:
         #mylog.debug("column name size %d" % sizeof(column_name)) #yes is 100
 
         column_name[0] = 0
-        rc4 = SQLDescribeCol(hstmt,
+        rc = SQLDescribeCol(hstmt,
                             col,
                             <SQLCHAR *>&column_name,
                             sizeof(column_name),
@@ -285,17 +296,15 @@ cdef class ODBC_UTILS:
                             &pibScale,
                             &pfNullable)
         # we do get an error here invalid column count on the last+1 column
-        self.STMT_HANDLE_CHECK(hstmt, self.localhdbc, rc4,lineno(),"SQLDescribeCol")
+        self.STMT_HANDLE_CHECK(hstmt, self.localhdbc, rc, __LINE__, "SQLDescribeCol", __FILE__)
 
         str_sql_type = ""
-        #my_dict = sys.modules[__name__].__dict__ 
         for key in str_sql_dict.keys():
-            #if pfSqlType.value in str_sql_list.values() and\
             if pfSqlType == str_sql_dict[key]:
                 str_sql_type = key
                 break
-                #print key,my_dict[key]
-        if rc4 == SQL_SUCCESS or rc4 == SQL_SUCCESS_WITH_INFO:
+
+        if rc == SQL_SUCCESS or rc == SQL_SUCCESS_WITH_INFO:
 
             if len(column_name) > self.max_column_name_size:
                 self.max_column_name_size = strlen(<const char *>column_name)
@@ -310,12 +319,14 @@ cdef class ODBC_UTILS:
                       pfNullable]
             table.add_row(my_row)
 
-        return rc4
+        return rc
 
     cdef STMT_HANDLE_CHECK(self, SQLHSTMT hstmt, SQLHDBC hdbc, SQLRETURN clirc, long lineno=0,
                            char * funcname="", 
                            char * _file=""):
 
+        if _file == "":
+            _file == __name__.__file__
         if clirc != SQL_SUCCESS:
             if lineno == 0:
                 traceback.print_stack()
@@ -380,7 +391,7 @@ clirc    '%s'
 line     '%s' 
 funcname '%s' 
 file     '%s'
-""" % (clirc, lineno, funcname,file_name))
+""" % (clirc, lineno, process_to_char(funcname), file_name))
             return self.HandleDiagnosticsPrint(htype, hndl)
 
         elif  clirc in err_dict.keys():
@@ -404,19 +415,19 @@ file     '%s'
 
         #this unbind any SQLBindCol statement previously executed on the hstmt 
         clirc = SQLFreeStmt(hstmt, SQL_UNBIND)
-        rc = self.HandleInfoPrint(SQL_HANDLE_STMT, <SQLHANDLE>hstmt, clirc, lineno(),"SQL_UNBIND SQLFreeStmt")
+        rc = self.HandleInfoPrint(SQL_HANDLE_STMT, <SQLHANDLE>hstmt, clirc, __LINE__,"SQL_UNBIND SQLFreeStmt")
         if rc:
             return 1
 
         # SQLBindParameter usually used to pass parameters to functions or store proc like  CALL OUT_LANGUAGE(?), 1 parameter IN_OUT ?
         #this reset SQLBindParameter statement previously executed on the hstmt
         clirc = SQLFreeStmt(hstmt, SQL_RESET_PARAMS)
-        rc = self.HandleInfoPrint(SQL_HANDLE_STMT, <SQLHANDLE>hstmt, clirc, lineno(),"SQL_RESET_PARAMS SQLFreeStmt")
+        rc = self.HandleInfoPrint(SQL_HANDLE_STMT, <SQLHANDLE>hstmt, clirc, __LINE__,"SQL_RESET_PARAMS SQLFreeStmt")
         if rc:
             return 1
 
         clirc = SQLFreeStmt(hstmt, SQL_CLOSE)
-        rc = self.HandleInfoPrint(SQL_HANDLE_STMT, <SQLHANDLE>hstmt, clirc, lineno(),"SQL_CLOSE SQLFreeStmt")
+        rc = self.HandleInfoPrint(SQL_HANDLE_STMT, <SQLHANDLE>hstmt, clirc, __LINE__,"SQL_CLOSE SQLFreeStmt")
         if rc:
             return 1
 
@@ -444,13 +455,12 @@ file     '%s'
 
         Parameters
         ----------
-        hdbc     :class:`ctypes.c_void_p` communication handle
+        hdbc     :`SQLHDBC`    communication handle
         clirc    :obj:`int`  cli return code
         lineno   :obj:`int`  line number where the error occurred in the source code
-        funcname :obj:`str` function name where the error occurred
+        funcname :obj:`str`  :obj:`unicode` function name where the error occurred
         """
         if clirc != SQL_SUCCESS:
-            mylog.error("funcname %s clirc %s lineno %d" % (funcname, clirc, lineno))
             rc = self.HandleInfoPrint(SQL_HANDLE_DBC,
                                       <SQLHANDLE> hdbc,
                                       clirc,
@@ -487,30 +497,17 @@ file     '%s'
                             message,
                             SQL_MAX_MESSAGE_LENGTH,
                             &length) == SQL_SUCCESS):
-            if strlen(<const char *>message) > 100:
-                if not sys.version_info > (3,):
-                    #message = message[:100]+"\n"+message[100:200]+"\n"+message[200:]
-                    #some_msg = str(message)
-                    #mylog.error(message)
-                    #message = textwrap.wrap(some_msg, 100)
-                    
-                    pass
-                else:
-                    pass
-                    #str1 = message.value[:100].encode('ascii')
-                    #message.value = str1+"\n"+unicode(message.value[100:200])+"\n"+unicode(message.value[200:])
 
             if old_sqlcode == sqlcode:
                 break
 
             mylog.error("""
-
-    SQLSTATE            = %s 
-    Native Error Code   = %d 
-    message             = '%s'
-    """ % (self.process_to_char(sqlstate),
+SQLSTATE            = %s 
+Native Error Code   = %d 
+message             = '%s'
+    """ % (process_to_char(sqlstate),
        sqlcode, 
-       self.process_to_char(message)))
+       process_to_char(message)))
             i += 1
 
             old_sqlcode = sqlcode
@@ -518,7 +515,8 @@ file     '%s'
             #    if sqlcodes.__dict__[key] == sqlcode.value :
             #        mylog.error("Native Error Code   = %s" % key)
 
-            if sqlcode == -6036:
+            if sqlcode == SQLE_RC_START_STOP_IN_PROG:
+                mylog.error("SQLE_RC_START_STOP_IN_PROG Start/stop command in progress")
                 DB2_NOT_STARTED = 1
 
             if sqlcode == SQL_RC_E1042:
