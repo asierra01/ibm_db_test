@@ -62,16 +62,20 @@ python3 setup.py build
 ```
 also while there type
 ```
-python compile_code_spserver_udfsrv.py
+python3 compile_code_spserver_udfsrv.py
 ```
 This will compile spserver with some local modifications and udfsrv (under win64, linux or darwin). Next, it will copy the resulting (so, dll) to the DB2 function directory
 
 to run the test
 ```
-python -m unittest cli_test_cases
-python -m unittest ibm_db_test_cases
-python -m unittest oci_test
-python tbload\tbload.py
+python3 -m unittest cli_test_cases
+python3 -m unittest ibm_db_test_cases
+python3 -m unittest oci_test
+python3 tbload\tbload.py
+```
+to run a particular file
+```
+python3.exe -m unittest ibm_db_test_cases/ibm_db_extract_one_big_csv_array.py
 ```
 Another way to run the test, edit/change conn.ini, set 
 ```
@@ -79,6 +83,6 @@ DB2_TEST_BACKUP=1
 DB2_TEST_CLI=1
 DB2_TEST_OCI=1
 DB2_TEST_IBM_DB=1
-python run_ibm_db_test.py
+python3 run_ibm_db_test.py
 ```
 Questions asierra01@gmail.com
